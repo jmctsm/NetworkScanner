@@ -1,0 +1,8 @@
+# ignore my Crap folder
+/Crap/*
+
+# ignore my virtual environment
+/.scanner/*
+
+# ignore pycache
+/__pycache__/
