@@ -41,8 +41,13 @@ def pinger(addresses):
             active_pattern = "Round Trip Times min\/avg\/max is (.*)\/(.*)\/(.*) ms"
             active_result = re.search(active_pattern, str(result), re.IGNORECASE)
             if active_result:
-                up_result = f"{active_result.group(1)} ms, {active_result.group(2)} ms, {active_result.group(3)} ms"
-                print(f"{up_result})")
+                # up_result = f"{active_result.group(1)} ms, {active_result.group(2)} ms, {active_result.group(3)} ms"
+                up_result = (
+                    float(active_result.group(1)),
+                    float(active_result.group(2)),
+                    float(active_result.group(3)),
+                )
+                print(f"{up_result[0]} ms, {up_result[1]} ms, {up_result[2]} ms)")
                 active_dict[address] = {"ping": up_result}
 
     if len(active_dict) > 0:
