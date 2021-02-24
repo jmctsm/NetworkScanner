@@ -3,6 +3,13 @@
 
 # ignore my virtual environment
 /.scanner/*
+/.NetworkScanner/
 
 # ignore pycache
 /__pycache__/
+
+# ignore my TODO list
+TODO
+
+# ignore all .pyc files
+*.pyc

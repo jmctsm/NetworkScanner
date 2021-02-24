@@ -97,6 +97,29 @@ class TestPinger(unittest.TestCase):
             pinger(test_addresses)
         print("\nFinish testing that pinger fails due to an IP not being in the list\n")
 
+    def test_07_pass_time_list_tuple(self):
+        print("\nStart testing that pinger returns a tuple inside a dictionary\n")
+        test_addresses = [
+            ipaddress.ip_network("192.168.1.64/29"),
+            ipaddress.ip_network("10.0.1.248/29"),
+            ipaddress.ip_address("192.168.1.65"),
+        ]
+        for address in test_addresses:
+            hosts_lists = []
+            if isinstance(address, ipaddress.IPv4Network):
+                for x in address.hosts():
+                    hosts_lists.append(x)
+            elif isinstance(address, ipaddress.IPv4Address):
+                hosts_lists.append(address)
+            active_hosts = pinger(hosts_lists)
+            self.assertIsInstance(active_hosts, dict)
+            for key in active_hosts.keys():
+                self.assertIsInstance(active_hosts[key], dict)
+                self.assertIsInstance(active_hosts[key]["ping"], tuple)
+                self.assertEqual(len(active_hosts[key]["ping"]), 3)
+            print(f"Tests passed for network {str(address)}")
+        print("\nFinish testing that pinger returns a tuple inside a dictionary\n")
+
 
 if __name__ == "__main__":
     unittest.main()
