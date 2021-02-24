@@ -1,4 +1,10 @@
-pythonping>=1.0.15
-ipaddress>=1.0
-re>=2.2.1
+#pythonping>=1.0.15
+#ipaddress>=1.0
+#re>=2.2.1
+#socket
+pythonping
+ipaddress
+re
 socket
+requests
+urllib3

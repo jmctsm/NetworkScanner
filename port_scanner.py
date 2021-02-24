@@ -3,6 +3,10 @@
 import ipaddress
 import socket
 
+# Protocol Scanner imports
+from protocol_scanners.http_scanner import http_scanner
+from protocol_scanners.https_scanner import https_scanner
+
 
 """
 
@@ -75,6 +79,18 @@ def tcp_scanner(address, port):
     if not isinstance(port, int):
         raise ValueError(f"{port} is not of type int")
     print(f"Scanning TCP port {port}")
+    if port == 80:
+        scan_data = http_scanner(address)
+        print(f"TCP {port} = {scan_data.strip()}")
+        return scan_data
+    elif port == 443:
+        scan_data = https_scanner(address)
+        print(f"TCP {port} = {scan_data.strip()}")
+        return scan_data
+    elif port == 8080:
+        scan_data = http_scanner(address)
+        print(f"TCP {port} = {scan_data.strip()}")
+        return scan_data
     scan_socket = socket.socket()
     try:
         scan_socket.connect((address, port))
