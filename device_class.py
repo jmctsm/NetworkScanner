@@ -28,8 +28,16 @@ class FoundDevice:
             raise TypeError(f"{address} is not an instance of ipaddress.IPv4Address")
         if not isinstance(time_tuple, tuple):
             raise TypeError(f"{time_tuple} is not an instance of tuple")
+        if len(time_tuple) != 3:
+            raise ValueError(
+                f"The length of the response times should be 3.  You submitted {time_tuple}"
+            )
+        for time in time_tuple:
+            if not isinstance(time, float):
+                raise TypeError(f"The tuple is not a tuple of length 3 floats")
         self._IP = address
         self._response_time = time_tuple
+        self._ports = None
 
     @property
     def IP(self) -> ipaddress.IPv4Address:
@@ -39,6 +47,40 @@ class FoundDevice:
     def response_time(self) -> tuple:
         return self._response_time
 
+    @property
+    def ports(self):
+        return self._ports
+
+    @ports.setter
+    def ports(self, ports_headers):
+        if self.ports is None and isinstance(ports_headers, dict):
+            for key in ports_headers.keys():
+                if "TCP_" in key or "UDP_" in key:
+                    if isinstance(ports_headers[key], str):
+                        continue
+                    else:
+                        raise ValueError(f"{ports_headers[key]} is not a string")
+                else:
+                    raise ValueError(
+                        f"{key} does not follow standard of 'TCP_' or 'UDP_'"
+                    )
+            self._ports = ports_headers
+        elif isinstance(ports_headers, dict):
+            for key in ports_headers.keys():
+                if "TCP_" in key or "UDP_" in key:
+                    if isinstance(ports_headers[key], str):
+                        self._ports[key] = ports_headers[key]
+                    else:
+                        raise ValueError(f"{ports_headers[key]} is not a string")
+                else:
+                    raise ValueError(
+                        f"{key} does not follow standard of 'TCP_' or 'UDP_'"
+                    )
+        else:
+            raise TypeError(
+                f"ports variable passed in was not a dictionary.  You may want to fix that."
+            )
+
     def __hash__(self) -> int:
         return hash(self.IP)
 
@@ -46,15 +88,29 @@ class FoundDevice:
         return bool(self.IP)
 
     def __eq__(self, other: object) -> bool:
+        if isinstance(other, ipaddress.IPv4Address):
+            if other == self.IP:
+                return True
+            return False
         if isinstance(other, FoundDevice):
             if other.IP == self.IP:
                 return True
             return False
+        if isinstance(other, str):
+            try:
+                if isinstance(ipaddress.IPv4Address(other), ipaddress.IPv4Address):
+                    if ipaddress.IPv4Address(other) == self.IP:
+                        return True
+                    return False
+                else:
+                    raise ValueError()
+            except ValueError:
+                return False
         else:
-            raise TypeError(f"{other} is not a type of class FoundDevice")
+            return False
 
     def __repr__(self) -> str:
-        # THis needs to be expanded and the test updated for it too
+        # This needs to be expanded and the test updated for it too
         return f"{self.IP} : response times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
 
     """
