@@ -26,7 +26,8 @@ class TestFoundDevice(unittest.TestCase):
         self.assertIsInstance(test_class, FoundDevice)
         self.assertEqual(test_class._IP, test_ip)
         self.assertEqual(test_class._response_time, test_time)
-        self.assertIsNone(test_class._ports)
+        self.assertEqual(len(test_class._ports), 0)
+        self.assertIsInstance(test_class._ports, dict)
         print("Finish testing that class init works\n")
 
     def test_01_IP_getter_works(self):
@@ -268,34 +269,43 @@ class TestFoundDevice(unittest.TestCase):
         self.assertEqual(test_class.ports, test_ports)
         print("Finish testing port getter works")
 
-    def test_17_testing_port_setter_value_error(self):
+    def test_17_testing_port_setter_type_error(self):
         """
-        Tests that the port setter raises an value error
+        Tests that the port setter raises a type error
         """
-        print("\nStart testing port setter raises an value error")
-        test_fail_ports = {
-            "TPC_515": "No connection could be made because the target machine actively refused it",
-            "UPD_995": "Socket Timed Out",
-            "TCP_515": 1,
-            "UDP_995": 1.2,
-        }
-        test_ip = ipaddress.IPv4Address("192.168.1.65")
-        test_time = (1.1, 1.35, 1.82)
-        test_class = FoundDevice(test_ip, test_time)
-        for key, value in test_fail_ports.items():
-            test_dict = {key: value}
-            with self.assertRaises(ValueError):
-                test_class.ports = test_dict
+        print("\nStart testing port setter raises a type error")
         test_initial_ports = {
             "TCP_515": "No connection could be made because the target machine actively refused it",
             "UDP_995": "Socket Timed Out",
             "UDP_1080": "Socket Timed Out",
         }
-        test_class.ports = test_initial_ports
-        for key, value in test_fail_ports.items():
-            test_dict = {key: value}
+        test_fail_ports_01 = {
+            "TPC_515": "No connection could be made because the target machine actively refused it",
+            "UPD_995": "Socket Timed Out",
+        }
+        test_fail_ports_02 = {
+            "TCP_515": 1,
+            "UDP_995": 1.2,
+            "UDP_995": (1, 2),
+            "UDP_995": [1, 2],
+            "UDP_995": {"1": 2},
+        }
+        test_ip = ipaddress.IPv4Address("192.168.1.65")
+        test_time = (1.1, 1.35, 1.82)
+        test_class = FoundDevice(test_ip, test_time)
+        for key, value in test_fail_ports_01.items():
             with self.assertRaises(ValueError):
-                test_class.ports = test_dict
+                test_class.ports = {key: value}
+        for key, value in test_fail_ports_02.items():
+            with self.assertRaises(TypeError):
+                test_class.ports = {key: value}
+        test_class.ports = test_initial_ports
+        for key, value in test_fail_ports_01.items():
+            with self.assertRaises(ValueError):
+                test_class.ports = {key: value}
+        for key, value in test_fail_ports_02.items():
+            with self.assertRaises(TypeError):
+                test_class.ports = {key: value}
         print("Finish testing port setter raises an value error")
 
     def test_18_response_time_not_tuple_of_floats(self):

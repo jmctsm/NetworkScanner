@@ -37,7 +37,7 @@ class FoundDevice:
                 raise TypeError(f"The tuple is not a tuple of length 3 floats")
         self._IP = address
         self._response_time = time_tuple
-        self._ports = None
+        self._ports = {}
 
     @property
     def IP(self) -> ipaddress.IPv4Address:
@@ -53,32 +53,24 @@ class FoundDevice:
 
     @ports.setter
     def ports(self, ports_headers):
-        if self.ports is None and isinstance(ports_headers, dict):
-            for key in ports_headers.keys():
-                if "TCP_" in key or "UDP_" in key:
-                    if isinstance(ports_headers[key], str):
-                        continue
-                    else:
-                        raise ValueError(f"{ports_headers[key]} is not a string")
-                else:
-                    raise ValueError(
-                        f"{key} does not follow standard of 'TCP_' or 'UDP_'"
-                    )
-            self._ports = ports_headers
-        elif isinstance(ports_headers, dict):
+        if isinstance(ports_headers, dict):
             for key in ports_headers.keys():
                 if "TCP_" in key or "UDP_" in key:
                     if isinstance(ports_headers[key], str):
                         self._ports[key] = ports_headers[key]
                     else:
-                        raise ValueError(f"{ports_headers[key]} is not a string")
+                        raise TypeError(
+                            f"{ports_headers[key]} is not a string.  "
+                            f"It was {type(ports_headers[key])}"
+                        )
                 else:
                     raise ValueError(
                         f"{key} does not follow standard of 'TCP_' or 'UDP_'"
                     )
         else:
             raise TypeError(
-                f"ports variable passed in was not a dictionary.  You may want to fix that."
+                f"ports variable passed in was not a dictionary.  It was {type(ports_headers)}."
+                f"You may want to fix that."
             )
 
     def __hash__(self) -> int:
