@@ -1,0 +1,11 @@
+add in v6 support
+make pretty pictures
+fix protocol scanners for all things scanned or as close as can
+grab configs
+parse configs
+
+linux
+    grab route table
+    grab version
+    
+windows
