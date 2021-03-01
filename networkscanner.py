@@ -28,8 +28,8 @@ import time
 
 
 # Imports of Modules for this App
-from pinger import pinger
-from device_class import FoundDevice
+from scan_mods.pinger import pinger
+from scan_mods.device_class import FoundDevice
 
 
 def main():
