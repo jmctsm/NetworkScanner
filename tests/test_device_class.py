@@ -7,7 +7,7 @@ currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 
-from device_class import FoundDevice
+from scan_mods.device_class import FoundDevice
 
 
 class TestFoundDevice(unittest.TestCase):
