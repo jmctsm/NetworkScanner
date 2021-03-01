@@ -8,3 +8,5 @@ re
 socket
 requests
 urllib3
+dns.flags
+dns.resolver
