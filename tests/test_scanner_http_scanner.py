@@ -9,7 +9,7 @@ currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 
-from protocol_scanners.http_scanner import http_scanner
+from scan_mods.protocol_scanners.http_scanner import http_scanner
 
 
 class TestPortScanner(unittest.TestCase):
@@ -21,7 +21,7 @@ class TestPortScanner(unittest.TestCase):
         """
         Tests that the HTTP port scanner passes initial tests
         """
-        for address in ["192.168.1.65", "10.0.1.254", "192.168.89.80"]:
+        for address in ["192.168.1.65", "10.0.1.1", "192.168.89.80"]:
             result = http_scanner(address)
             self.assertIsNotNone(result)
             self.assertGreaterEqual(len(result), 1)
