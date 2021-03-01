@@ -9,3 +9,9 @@ linux
     grab version
     
 windows
+
+
+arguments
+    need one for putting in the domain name to pull for DNS
+
+Figure out how to thread pinger and port_scanner
