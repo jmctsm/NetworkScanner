@@ -53,8 +53,7 @@ def pinger(addresses):
     if len(active_dict) > 0:
         return active_dict
     else:
-        print("Nothing was alive.  Pick a subnet that has something alive")
-        exit()
+        raise Exception("Nothing was alive.  Pick a subnet that has something alive")
 
 
 if __name__ == "__main__":

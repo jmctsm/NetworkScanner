@@ -7,7 +7,7 @@ currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 
-from pinger import pinger
+from scan_mods.pinger import pinger
 
 
 class TestPinger(unittest.TestCase):
@@ -15,20 +15,26 @@ class TestPinger(unittest.TestCase):
     Tests that pinger works
     """
 
+    test_addresses = [
+        ipaddress.ip_network("192.168.1.64/29"),
+        ipaddress.ip_network("10.0.1.0/29"),
+        ipaddress.ip_address("192.168.89.80"),
+    ]
+    test_networks = [
+        ipaddress.ip_network("192.168.1.64/29"),
+        ipaddress.ip_network("10.0.1.0/29"),
+    ]
+
     def test_00_all_pass(self):
         print("\nStart testing that all pass\n")
-        test_addresses = [
-            ipaddress.ip_network("192.168.1.64/29"),
-            ipaddress.ip_network("10.0.1.248/29"),
-            ipaddress.ip_address("192.168.1.65"),
-        ]
-        for address in test_addresses:
+        for address in self.test_addresses:
             hosts_lists = []
             if isinstance(address, ipaddress.IPv4Network):
                 for x in address.hosts():
                     hosts_lists.append(x)
             elif isinstance(address, ipaddress.IPv4Address):
                 hosts_lists.append(address)
+            print(hosts_lists)
             active_hosts = pinger(hosts_lists)
             active_hosts_length = len(active_hosts)
             self.assertGreaterEqual(active_hosts_length, 0)
@@ -38,24 +44,22 @@ class TestPinger(unittest.TestCase):
     def test_01_fail_due_to_hosts(self):
         print("\nStart testing that all fail due to no subnets.  All host bits\n")
         with self.assertRaises(ValueError):
-            test_addresses = [
+            test_01_addresses = [
                 ipaddress.ip_network("192.168.1.65/29"),
                 ipaddress.ip_network("10.0.1.248/32"),
             ]
+            for address in test_01_addresses:
+                print(pinger(address))
         print("\nFinish testing that all fail due to no subnets.  All host bits\n")
 
     def test_02_fail_due_to_not_list(self):
         print("\nStart testing that all fail due to not a list passed\n")
-        test_addresses = [
-            ipaddress.ip_network("192.168.1.64/29"),
-            ipaddress.ip_network("10.0.1.248/29"),
-        ]
-        for address in test_addresses:
+        for address in self.test_networks:
             hosts_lists = []
             for x in address.hosts():
                 hosts_lists.append(x)
             with self.assertRaises(TypeError):
-                active_hosts = pinger(tuple(hosts_lists))
+                pinger(tuple(hosts_lists))
         print("\nFinish testing that all fail due to not a list passed\n")
 
     def test_03_fail_due_to_empy_list_arg(self):
@@ -75,7 +79,7 @@ class TestPinger(unittest.TestCase):
             hosts_lists = []
             for x in address.hosts():
                 hosts_lists.append(x)
-            with self.assertRaises(SystemExit):
+            with self.assertRaises(Exception):
                 pinger(hosts_lists)
         print("\nFinish testing that all pass\n")
 
@@ -99,12 +103,7 @@ class TestPinger(unittest.TestCase):
 
     def test_07_pass_time_list_tuple(self):
         print("\nStart testing that pinger returns a tuple inside a dictionary\n")
-        test_addresses = [
-            ipaddress.ip_network("192.168.1.64/29"),
-            ipaddress.ip_network("10.0.1.248/29"),
-            ipaddress.ip_address("192.168.1.65"),
-        ]
-        for address in test_addresses:
+        for address in self.test_addresses:
             hosts_lists = []
             if isinstance(address, ipaddress.IPv4Network):
                 for x in address.hosts():
