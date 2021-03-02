@@ -6,6 +6,8 @@ import socket
 # Protocol Scanner imports
 from scan_mods.protocol_scanners.http_scanner import http_scanner
 from scan_mods.protocol_scanners.https_scanner import https_scanner
+from scan_mods.protocol_scanners.dns_scanner import udp_dns_scanner
+from scan_mods.protocol_scanners.dns_scanner import tcp_dns_scanner
 
 
 """
@@ -63,23 +65,47 @@ from scan_mods.protocol_scanners.https_scanner import https_scanner
 """
 
 
-def tcp_scanner(address, port):
+def __validate_for_scanners(address, port, domain):
+    """
+    Validates that the address, port, and domain are of the correct types
+    Pulled here since the code was the same
+
+    Args:
+        address (str) : string type address
+        port (int) : port number that should be an int
+        domain (str) : domain name that should be a string
+    """
+    if not isinstance(address, str):
+        raise TypeError(f"{address} is not of type str")
+    if not isinstance(port, int):
+        raise TypeError(f"{port} is not of type int")
+    if domain is not None and not isinstance(domain, str):
+        raise TypeError(f"{domain} is not a string")
+    return True
+
+
+def tcp_scanner(address, port, domain_name=None):
     """
     Scans the TCP port and returns the string to the main function
 
     Args:
         address (str) : string of the IPv4 address that is passed from the calling function
         port (int) : int of the port to connect to
+        domain_name (str): optional variable to hold for domain_name testing in things like DNS
 
     Return:
         string of either the error message or the header from the port
     """
-    if not isinstance(address, str):
-        raise ValueError(f"{address} is not of type str")
-    if not isinstance(port, int):
-        raise ValueError(f"{port} is not of type int")
+    __validate_for_scanners(address, port, domain_name)
     print(f"Scanning TCP port {port}")
-    if port == 80:
+    if port == 53:
+        if domain_name is None:
+            scan_data = tcp_dns_scanner(dns_server=address)
+        else:
+            scan_data = tcp_dns_scanner(dns_server=address, domainname=domain_name)
+        print(f"TCP {port} = {scan_data.strip()}")
+        return scan_data
+    elif port == 80:
         scan_data = http_scanner(address)
         print(f"TCP {port} = {scan_data.strip()}")
         return scan_data
@@ -95,9 +121,13 @@ def tcp_scanner(address, port):
     try:
         scan_socket.connect((address, port))
     except ConnectionRefusedError:
-        output = (
-            "No connection could be made because the target machine actively refused it"
-        )
+        output = "ConnectionRefusedError: No connection could be made because the target machine actively refused it"
+        print(f"TCP {port} = {output}")
+        scan_socket.close()
+        return output
+    except TimeoutError:
+        output = f"TimeoutError: A connection attempt failed because the connected party did not properly respond after a period of time"
+        output += ", or established connection failed because connected host has failed to respond"
         print(f"TCP {port} = {output}")
         scan_socket.close()
         return output
@@ -106,9 +136,7 @@ def tcp_scanner(address, port):
     try:
         scan_data = scan_socket.recv(1024).decode()
     except UnicodeDecodeError:
-        scan_data = (
-            "'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
-        )
+        scan_data = "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
         print(f"TCP {port} = {scan_data}")
         scan_socket.close()
         return scan_data
@@ -119,22 +147,27 @@ def tcp_scanner(address, port):
     return None
 
 
-def udp_scanner(address, port):
+def udp_scanner(address, port, domain_name=None):
     """
     Scans the UDP port and returns the string to the main function
 
     Args:
         address (str) : string of the IPv4 address that is passed from the calling function
         port (int) : int of the port to connect to
+        domain_name (str): optional variable to hold for domain_name testing in things like DNS
 
     Return:
         string of either the error message or the header from the port
     """
-    if not isinstance(address, str):
-        raise ValueError(f"{address} is not of type str")
-    if not isinstance(port, int):
-        raise ValueError(f"{port} is not of type int")
+    __validate_for_scanners(address, port, domain_name)
     print(f"Scanning UDP port {port}")
+    if port == 53:
+        if domain_name is None:
+            scan_data = udp_dns_scanner(dns_server=address)
+        else:
+            scan_data = udp_dns_scanner(dns_server=address, domainname=domain_name)
+        print(f"UDP {port} = {scan_data.strip()}")
+        return scan_data
     try:
         MESSAGE = b"Hello, World!"
         # socket.AF_INET is for the internet protocol and socket.sock_dgram is for UDP
@@ -153,13 +186,14 @@ def udp_scanner(address, port):
     return None
 
 
-def port_scanner(address):
+def port_scanner(address, domain_name=None):
     """
     This will scan an address for standard ports to see what is open. If it is open, it will then grab a header if applicable.
     It returns a dictionary of ports and headers to the calling function
 
     Args:
         address (IPv4 address object) : IPv4 address object to scan
+        domain_name (str) : string of the domain name to test with other places like DNS
 
     Return:
         dict : dictionary of ports and headers that are open on the box
@@ -228,19 +262,33 @@ def port_scanner(address):
     )
     # check to make sure that the address is correct first
     if not isinstance(address, ipaddress.IPv4Address):
-        raise ValueError(f"{address} since it is not an IPv4Address")
+        raise TypeError(f"{address} since it is not an IPv4Address")
+    if domain_name is not None and not isinstance(domain_name, str):
+        raise TypeError(f"{domain_name} is not a string")
     return_dict = {}
     # Scan the TCP Ports
     print(f"SCANNING TCP PORTS for {address}...")
     for port in TCP_PORTS:
         TCP_key = f"TCP_{str(port)}"
-        return_dict[TCP_key] = tcp_scanner(str(address), port)
+        if domain_name is None:
+            scan_result = tcp_scanner(str(address), port)
+        else:
+            scan_result = tcp_scanner(str(address), port, domain_name)
+        if len(scan_result) < 1:
+            scan_result = "Nothing returned from the server"
+        return_dict[TCP_key] = scan_result
 
     # Scan the UDP Ports
     print(f"SCANNING UDP PORTS for {address}...")
     for port in UDP_PORTS:
         UDP_key = f"UDP_{str(port)}"
-        return_dict[UDP_key] = udp_scanner(str(address), port)
+        if domain_name is None:
+            scan_result = udp_scanner(str(address), port)
+        else:
+            scan_result = udp_scanner(str(address), port, domain_name)
+        if len(scan_result) < 1:
+            scan_result = "***Nothing returned from the server***"
+        return_dict[UDP_key] = scan_result
 
     return return_dict
 
@@ -252,7 +300,15 @@ if __name__ == "__main__":
         # ipaddress.ip_address("10.0.1.254"),
         ipaddress.ip_address("192.168.89.80"),
     ]
+    test_domain_names = [
+        "test.local",
+        "www.google.com",
+        "google.com",
+        "test.test",
+        None,
+    ]
     dict_of_ports = {}
     for address in address_list:
-        dict_of_ports[address] = port_scanner(address)
+        for test_domain_name in test_domain_names:
+            dict_of_ports[address] = port_scanner(address, test_domain_name)
     print(dict_of_ports)

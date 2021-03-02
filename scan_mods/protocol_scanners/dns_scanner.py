@@ -81,9 +81,13 @@ def tcp_dns_scanner(dns_server=None, domainname=None):
     except dns.xfr.TransferError:
         return f"Zone Transfer Error for {domain_name} on server {server}"
     except ConnectionRefusedError:
-        return (
-            "No connection could be made because the target machine actively refused it"
-        )
+        return "ConnectionRefusedError: No connection could be made because the target machine actively refused it"
+    except ConnectionResetError:
+        return "ConnectionResetError: An existing connection was forcibly closed by the remote host"
+    except dns.exception.FormError:
+        return "FormError: No answer or RRset not for name"
+    except TimeoutError as ex:
+        return f"TimeoutError: {ex}"
     return_string = f"Zone transfer for {domain_name} from server {server}"
     for node in sorted(z.nodes.keys()):
         split_lines = z[node].to_text(node).splitlines()
