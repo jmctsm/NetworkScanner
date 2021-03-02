@@ -3,6 +3,7 @@
 import ipaddress
 from pythonping import ping
 import re
+import time
 
 
 def pinger(addresses):
@@ -57,10 +58,12 @@ def pinger(addresses):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     # test this out with a home network
     test_addresses = [
         ipaddress.ip_network("192.168.1.64/29"),
         ipaddress.ip_address("192.168.1.65"),
+        ipaddress.ip_network("192.168.89.0/24"),
     ]
     # host list to pass to the pinger function
     hosts_lists = []
@@ -83,3 +86,5 @@ if __name__ == "__main__":
         active_hosts = pinger(hosts_lists)
     if len(active_hosts) > 0:
         print(active_hosts)
+    duration = time.time() - start_time
+    print(f"Total time was {duration} seconds")
