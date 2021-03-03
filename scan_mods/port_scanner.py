@@ -298,8 +298,8 @@ if __name__ == "__main__":
     start_time = time.time()
     # calling function for example
     address_list = [
-        # ipaddress.ip_address("192.168.1.65"),
-        # ipaddress.ip_address("10.0.1.254"),
+        ipaddress.ip_address("192.168.1.65"),
+        ipaddress.ip_address("10.0.1.254"),
         ipaddress.ip_address("192.168.89.80"),
     ]
     test_domain_names = [
