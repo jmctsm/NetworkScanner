@@ -8,6 +8,7 @@ from typing import Type
 import requests
 import ipaddress
 from requests import adapters
+import time
 
 
 def http_scanner(address):
@@ -34,20 +35,21 @@ def http_scanner(address):
     adapter = requests.adapters.HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     url = f"http://{address}"
+    return_string = ""
     while True:
         try:
             response = session.get(url)
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")
-            break
+            session.close()
+            return f"HTTP error occurred: {http_err}"
         except requests.exceptions.ConnectionError as conn_err:
-            print(f"Connection error occurred: {conn_err}")
-            break
+            session.close()
+            return f"Connection error occurred: {conn_err}"
         except Exception as err:
-            print(f"Other error occurred: {err}")
-            break
+            session.close()
+            return f"Other error occurred: {err}"
         headers_dict = response.headers
         return_string = (
             f"Server : {headers_dict.get('Server', 'None Listed in Headers')}"
@@ -59,10 +61,11 @@ def http_scanner(address):
             )
         session.close()
         return return_string
-    session.close()
-    return "HTTP SERVER returned an error"
 
 
 if __name__ == "__main__":
-    for address in ["192.168.1.65", "192.168.89.80"]:
+    start_time = time.time()
+    for address in ["192.168.1.65", "192.168.89.80", "10.0.1.1", "192.168.1.254"]:
         print(http_scanner(address))
+    duration = time.time() - start_time
+    print(f"Total time was {duration} seconds")

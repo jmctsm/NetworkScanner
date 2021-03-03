@@ -2,7 +2,14 @@
 
 import ipaddress
 import socket
+import multiprocessing
 import time
+import os
+import sys
+
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
 
 # Protocol Scanner imports
 from scan_mods.protocol_scanners.http_scanner import http_scanner
@@ -85,90 +92,94 @@ def __validate_for_scanners(address, port, domain):
     return True
 
 
-def tcp_scanner(address, port, domain_name=None):
+def __tcp_scanner(address_port_domain_name_tuple):
     """
     Scans the TCP port and returns the string to the main function
 
     Args:
-        address (str) : string of the IPv4 address that is passed from the calling function
-        port (int) : int of the port to connect to
-        domain_name (str): optional variable to hold for domain_name testing in things like DNS
+        address_port_domain_name_tuple (tuple) : tuple of address, port and domain name
 
     Return:
-        string of either the error message or the header from the port
+        tuple : address and either the error message or the header from the port
     """
+    if len(address_port_domain_name_tuple) != 3:
+        raise ValueError("Length of tuple passed to tcp scanner was not three")
+    address, port, domain_name = address_port_domain_name_tuple
     __validate_for_scanners(address, port, domain_name)
     print(f"Scanning TCP port {port}")
+    TCP_key = f"TCP_{str(port)}"
     if port == 53:
         if domain_name is None:
             scan_data = tcp_dns_scanner(dns_server=address)
         else:
             scan_data = tcp_dns_scanner(dns_server=address, domainname=domain_name)
-        print(f"TCP {port} = {scan_data.strip()}")
-        return scan_data
+        # print(f"TCP {port} = {scan_data.strip()}")
+        return (TCP_key, scan_data)
     elif port == 80:
         scan_data = http_scanner(address)
-        print(f"TCP {port} = {scan_data.strip()}")
-        return scan_data
+        # print(f"TCP {port} = {scan_data.strip()}")
+        return (TCP_key, scan_data)
     elif port == 443:
         scan_data = https_scanner(address)
-        print(f"TCP {port} = {scan_data.strip()}")
-        return scan_data
+        # print(f"TCP {port} = {scan_data.strip()}")
+        return (TCP_key, scan_data)
     elif port == 8080:
         scan_data = http_scanner(address)
-        print(f"TCP {port} = {scan_data.strip()}")
-        return scan_data
+        # print(f"TCP {port} = {scan_data.strip()}")
+        return (TCP_key, scan_data)
     scan_socket = socket.socket()
     try:
         scan_socket.connect((address, port))
     except ConnectionRefusedError:
         output = "ConnectionRefusedError: No connection could be made because the target machine actively refused it"
-        print(f"TCP {port} = {output}")
+        # print(f"TCP {port} = {output}")
         scan_socket.close()
-        return output
+        return (TCP_key, output)
     except TimeoutError:
         output = f"TimeoutError: A connection attempt failed because the connected party did not properly respond after a period of time"
         output += ", or established connection failed because connected host has failed to respond"
-        print(f"TCP {port} = {output}")
+        # print(f"TCP {port} = {output}")
         scan_socket.close()
-        return output
+        return (TCP_key, output)
     MESSAGE = b"Hello, World!"
     scan_socket.send(MESSAGE)
     try:
         scan_data = scan_socket.recv(1024).decode()
     except UnicodeDecodeError:
         scan_data = "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
-        print(f"TCP {port} = {scan_data}")
+        # print(f"TCP {port} = {scan_data}")
         scan_socket.close()
-        return scan_data
+        return (TCP_key, scan_data)
     else:
-        print(f"TCP {port} = {scan_data.strip()}")
+        # print(f"TCP {port} = {scan_data.strip()}")
         scan_socket.close()
-        return scan_data.strip()
+        return (TCP_key, scan_data.strip())
     return None
 
 
-def udp_scanner(address, port, domain_name=None):
+def __udp_scanner(address_port_domain_name_tuple):
     """
-    Scans the UDP port and returns the string to the main function
+    Scans the TCP port and returns the string to the main function
 
     Args:
-        address (str) : string of the IPv4 address that is passed from the calling function
-        port (int) : int of the port to connect to
-        domain_name (str): optional variable to hold for domain_name testing in things like DNS
+        address_port_domain_name_tuple (tuple) : tuple of address, port and domain name
 
     Return:
-        string of either the error message or the header from the port
+        tuple : address and either the error message or the header from the port
     """
+    if len(address_port_domain_name_tuple) != 3:
+        raise ValueError("Length of tuple passed to tcp scanner was not three")
+    address, port, domain_name = address_port_domain_name_tuple
     __validate_for_scanners(address, port, domain_name)
     print(f"Scanning UDP port {port}")
+    UDP_key = f"UDP_{str(port)}"
     if port == 53:
         if domain_name is None:
             scan_data = udp_dns_scanner(dns_server=address)
         else:
             scan_data = udp_dns_scanner(dns_server=address, domainname=domain_name)
-        print(f"UDP {port} = {scan_data.strip()}")
-        return scan_data
+        # print(f"UDP {port} = {scan_data.strip()}")
+        return (UDP_key, scan_data)
     try:
         MESSAGE = b"Hello, World!"
         # socket.AF_INET is for the internet protocol and socket.sock_dgram is for UDP
@@ -176,14 +187,14 @@ def udp_scanner(address, port, domain_name=None):
         scan_socket.sendto(MESSAGE, (address, port))
         scan_socket.settimeout(2)
         scan_data, addr = scan_socket.recvfrom(1024)  # buffer size is 1024 bytes
-        print(f"UDP {port} = {scan_data.strip()}")
+        # print(f"UDP {port} = {scan_data.strip()}")
         scan_socket.close()
-        return scan_data.strip()
+        return (UDP_key, scan_data.strip())
     except socket.timeout:
         scan_data = f"Socket Timed Out"
-        print(f"UDP {port} = {scan_data}")
+        # print(f"UDP {port} = {scan_data}")
         scan_socket.close()
-        return scan_data
+        return (UDP_key, scan_data)
     return None
 
 
@@ -268,28 +279,37 @@ def port_scanner(address, domain_name=None):
         raise TypeError(f"{domain_name} is not a string")
     return_dict = {}
     # Scan the TCP Ports
-    print(f"SCANNING TCP PORTS for {address}...")
-    for port in TCP_PORTS:
-        TCP_key = f"TCP_{str(port)}"
-        if domain_name is None:
-            scan_result = tcp_scanner(str(address), port)
+    print(f"SCANNING TCP and UDP PORTS for {address}...")
+    tcp_port_to_domain_list = []
+    udp_port_to_domain_list = []
+    for i in range(len(TCP_PORTS)):
+        tcp_port_to_domain_list.append((str(address), TCP_PORTS[i], domain_name))
+    for i in range(len(UDP_PORTS)):
+        udp_port_to_domain_list.append((str(address), UDP_PORTS[i], domain_name))
+    with multiprocessing.Pool() as pool:
+        tcp_results = pool.map(__tcp_scanner, tcp_port_to_domain_list)
+    for result in tcp_results:
+        if len(result) != 2:
+            print(f"\n\n{result}\n\n")
+            raise ValueError("TCP Scanner returned something incorrectly.")
+        key = result[0]
+        if len(result[1]) < 1:
+            scan_output = "Nothing returned from the server"
         else:
-            scan_result = tcp_scanner(str(address), port, domain_name)
-        if len(scan_result) < 1:
-            scan_result = "Nothing returned from the server"
-        return_dict[TCP_key] = scan_result
-
-    # Scan the UDP Ports
-    print(f"SCANNING UDP PORTS for {address}...")
-    for port in UDP_PORTS:
-        UDP_key = f"UDP_{str(port)}"
-        if domain_name is None:
-            scan_result = udp_scanner(str(address), port)
+            scan_output = result[1]
+        return_dict[key] = scan_output
+    with multiprocessing.Pool() as pool:
+        udp_results = pool.map(__udp_scanner, udp_port_to_domain_list)
+    for result in udp_results:
+        if len(result) != 2:
+            print(f"\n\n{result}\n\n")
+            raise ValueError("UDP Scanner returned something incorrectly.")
+        key = result[0]
+        if len(result[1]) < 1:
+            scan_output = "Nothing returned from the server"
         else:
-            scan_result = udp_scanner(str(address), port, domain_name)
-        if len(scan_result) < 1:
-            scan_result = "***Nothing returned from the server***"
-        return_dict[UDP_key] = scan_result
+            scan_output = result[1]
+        return_dict[key] = scan_output
 
     return return_dict
 
@@ -298,9 +318,10 @@ if __name__ == "__main__":
     start_time = time.time()
     # calling function for example
     address_list = [
-        # ipaddress.ip_address("192.168.1.65"),
-        # ipaddress.ip_address("10.0.1.254"),
+        ipaddress.ip_address("192.168.1.65"),
+        ipaddress.ip_address("10.0.1.254"),
         ipaddress.ip_address("192.168.89.80"),
+        ipaddress.ip_address("192.168.1.254"),
     ]
     test_domain_names = [
         "test.local",

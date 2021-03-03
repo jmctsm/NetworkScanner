@@ -7,6 +7,7 @@ import dns.resolver
 import ipaddress
 import dns.query
 import dns.zone
+import time
 
 
 def udp_dns_scanner(dns_server=None, domainname=None):
@@ -135,6 +136,7 @@ def validate_server_domain_name(server, domain_name):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     local_dns_server = [
         "192.168.1.65",
         "192.168.89.80",
@@ -148,3 +150,5 @@ if __name__ == "__main__":
             print(
                 f"{dns_server}:{domain} <TCP> = {tcp_dns_scanner(dns_server, domain)}"
             )
+    duration = time.time() - start_time
+    print(f"Total time was {duration} seconds")

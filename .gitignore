@@ -10,3 +10,7 @@
 
 # ignore all .pyc files
 *.pyc
+
+#ignore my vscode json file
+.vscode/*.json
+.vscode/
