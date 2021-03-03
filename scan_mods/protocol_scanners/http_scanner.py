@@ -41,17 +41,14 @@ def http_scanner(address):
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_err:
-            # print(f"HTTP error occurred: {http_err}")
-            return_string = str(http_err)
-            break
+            session.close()
+            return f"HTTP error occurred: {http_err}"
         except requests.exceptions.ConnectionError as conn_err:
-            # print(f"Connection error occurred: {conn_err}")
-            return_string = str(conn_err)
-            break
+            session.close()
+            return f"Connection error occurred: {conn_err}"
         except Exception as err:
-            # print(f"Other error occurred: {err}")
-            return_string = str(err)
-            break
+            session.close()
+            return f"Other error occurred: {err}"
         headers_dict = response.headers
         return_string = (
             f"Server : {headers_dict.get('Server', 'None Listed in Headers')}"
@@ -62,11 +59,6 @@ def http_scanner(address):
                 f"\n\t{key} : {headers_dict.get(key, 'None Listed in Headers')}"
             )
         session.close()
-        return return_string
-    session.close()
-    if return_string == "":
-        return "HTTP SERVER returned an error"
-    else:
         return return_string
 
 
