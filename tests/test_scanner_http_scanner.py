@@ -21,7 +21,12 @@ class TestPortScanner(unittest.TestCase):
         """
         Tests that the HTTP port scanner passes initial tests
         """
-        for address in ["192.168.1.65", "10.0.1.1", "192.168.89.80"]:
+        for address in [
+            "192.168.1.65",
+            "10.0.1.1",
+            "192.168.89.80",
+            "192.168.1.254",
+        ]:
             result = http_scanner(address)
             self.assertIsNotNone(result)
             self.assertGreaterEqual(len(result), 1)

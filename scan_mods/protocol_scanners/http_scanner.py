@@ -34,19 +34,23 @@ def http_scanner(address):
     adapter = requests.adapters.HTTPAdapter(max_retries=retry)
     session.mount("http://", adapter)
     url = f"http://{address}"
+    return_string = ""
     while True:
         try:
             response = session.get(url)
             # If the response was successful, no Exception will be raised
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_err:
-            print(f"HTTP error occurred: {http_err}")
+            # print(f"HTTP error occurred: {http_err}")
+            return_string = str(http_err)
             break
         except requests.exceptions.ConnectionError as conn_err:
-            print(f"Connection error occurred: {conn_err}")
+            # print(f"Connection error occurred: {conn_err}")
+            return_string = str(conn_err)
             break
         except Exception as err:
-            print(f"Other error occurred: {err}")
+            # print(f"Other error occurred: {err}")
+            return_string = str(err)
             break
         headers_dict = response.headers
         return_string = (
@@ -60,9 +64,12 @@ def http_scanner(address):
         session.close()
         return return_string
     session.close()
-    return "HTTP SERVER returned an error"
+    if return_string == "":
+        return "HTTP SERVER returned an error"
+    else:
+        return return_string
 
 
 if __name__ == "__main__":
-    for address in ["192.168.1.65", "192.168.89.80"]:
+    for address in ["192.168.1.65", "192.168.89.80", "10.0.1.1", "192.168.1.254"]:
         print(http_scanner(address))
