@@ -151,5 +151,4 @@ if __name__ == "__main__":
                 f"{dns_server}:{domain} <TCP> = {tcp_dns_scanner(dns_server, domain)}"
             )
     duration = time.time() - start_time
-    duration = time.time() - start_time
     print(f"Total time was {duration} seconds")

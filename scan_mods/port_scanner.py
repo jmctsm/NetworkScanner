@@ -2,6 +2,7 @@
 
 import ipaddress
 import socket
+import time
 
 # Protocol Scanner imports
 from scan_mods.protocol_scanners.http_scanner import http_scanner
@@ -294,6 +295,7 @@ def port_scanner(address, domain_name=None):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     # calling function for example
     address_list = [
         # ipaddress.ip_address("192.168.1.65"),
@@ -312,3 +314,5 @@ if __name__ == "__main__":
         for test_domain_name in test_domain_names:
             dict_of_ports[address] = port_scanner(address, test_domain_name)
     print(dict_of_ports)
+    duration = time.time() - start_time
+    print(f"Total time was {duration} seconds")

@@ -8,6 +8,7 @@ from typing import Type
 import requests
 import ipaddress
 from requests import adapters
+import time
 
 
 def http_scanner(address):
@@ -63,5 +64,8 @@ def http_scanner(address):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     for address in ["192.168.1.65", "192.168.89.80", "10.0.1.1", "192.168.1.254"]:
         print(http_scanner(address))
+    duration = time.time() - start_time
+    print(f"Total time was {duration} seconds")
