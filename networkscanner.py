@@ -28,7 +28,7 @@ import time
 
 
 # Imports of Modules for this App
-from scan_mods.pinger import pinger
+from scan_mods.mp_pinger import pinger
 from scan_mods.device_class import FoundDevice
 
 
@@ -50,6 +50,10 @@ def main():
     for key, value in hosts_that_are_up.items():
         device = FoundDevice(key, value["ping"])
         device_list.append(device)
+
+    # test
+    for device in device_list:
+        print(repr(device))
 
 
 def get_who_to_scan(arg_list):
