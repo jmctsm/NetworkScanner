@@ -13,3 +13,4 @@ dns.flags
 dns.resolver
 multiprocessing
 time
+json

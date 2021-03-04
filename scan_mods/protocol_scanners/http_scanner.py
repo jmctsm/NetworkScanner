@@ -43,13 +43,13 @@ def http_scanner(address):
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_err:
             session.close()
-            return f"HTTP error occurred: {http_err}"
+            return f"HTTPError -- {http_err}"
         except requests.exceptions.ConnectionError as conn_err:
             session.close()
-            return f"Connection error occurred: {conn_err}"
+            return f"ConnectionError -- {conn_err}"
         except Exception as err:
             session.close()
-            return f"Other error occurred: {err}"
+            return f"OtherError -- {err}"
         headers_dict = response.headers
         return_string = (
             f"Server : {headers_dict.get('Server', 'None Listed in Headers')}"

@@ -122,12 +122,12 @@ def tcp_scanner(address, port, domain_name=None):
     try:
         scan_socket.connect((address, port))
     except ConnectionRefusedError:
-        output = "ConnectionRefusedError: No connection could be made because the target machine actively refused it"
+        output = "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
         print(f"TCP {port} = {output}")
         scan_socket.close()
         return output
     except TimeoutError:
-        output = f"TimeoutError: A connection attempt failed because the connected party did not properly respond after a period of time"
+        output = f"TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time"
         output += ", or established connection failed because connected host has failed to respond"
         print(f"TCP {port} = {output}")
         scan_socket.close()
@@ -137,7 +137,7 @@ def tcp_scanner(address, port, domain_name=None):
     try:
         scan_data = scan_socket.recv(1024).decode()
     except UnicodeDecodeError:
-        scan_data = "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+        scan_data = "UnicodeDecodeError -- 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
         print(f"TCP {port} = {scan_data}")
         scan_socket.close()
         return scan_data
@@ -298,8 +298,8 @@ if __name__ == "__main__":
     start_time = time.time()
     # calling function for example
     address_list = [
-        # ipaddress.ip_address("192.168.1.65"),
-        # ipaddress.ip_address("10.0.1.254"),
+        ipaddress.ip_address("192.168.1.65"),
+        ipaddress.ip_address("10.0.1.254"),
         ipaddress.ip_address("192.168.89.80"),
     ]
     test_domain_names = [

@@ -34,13 +34,15 @@ def udp_dns_scanner(dns_server=None, domainname=None):
     try:
         response = udp_resolver.resolve(domain_name, "SOA")
     except dns.resolver.NoNameservers:
-        return f"{server} failed to answer the query for {domain_name}"
+        return (
+            f"DNSNoNameServers -- {server} failed to answer the query for {domain_name}"
+        )
     except dns.exception.Timeout:
-        return f"DNS operation timed out.  Port is more than likely blocked or not open"
+        return f"DNSTimeOutDNS -- operation timed out.  Port is more than likely blocked or not open"
     except dns.resolver.NoAnswer:
-        return f"DNS response does not contain an answer to the query: {domain_name} IN SOA"
+        return f"DNSNoAnswer -- DNS response does not contain an answer to the query: {domain_name} IN SOA"
     except dns.resolver.NXDOMAIN:
-        return f"The DNS query name does not exist: {domain_name}"
+        return f"DNSNXDOMAIN -- The DNS query name does not exist: {domain_name}"
     return_string = f"Canonical Name : {response.canonical_name}"
     response.__dict__.pop("canonical_name")
     for key, value in response.__dict__.items():
