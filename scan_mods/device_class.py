@@ -8,7 +8,7 @@ import ipaddress
 import os
 import re
 import time
-import pprint
+import json
 
 
 class FoundDevice:
@@ -90,18 +90,20 @@ class FoundDevice:
         tcp_pattern = "TCP_(.*)"
         udp_pattern = "UDP_(.*)"
         for key in self._all_ports.keys():
-            if re.search(tcp_pattern, key):
+            tcp_match = re.search(tcp_pattern, key, re.IGNORECASE)
+            udp_match = re.search(udp_pattern, key, re.IGNORECASE)
+            if tcp_match:
                 tcp_closed_pattern = "(ConnectionRefusedError|Connection error occurred|TimeoutError|UnicodeDecodeError|HTTPError|ConnectionError|OtherError)"
                 if re.search(tcp_closed_pattern, self._all_ports[key]):
-                    self._closed_tcp_ports[key] = self._all_ports[key]
+                    self._closed_tcp_ports[tcp_match.group(1)] = self._all_ports[key]
                 else:
-                    self._open_tcp_ports[key] = self._all_ports[key]
-            if re.search(udp_pattern, key):
+                    self._open_tcp_ports[tcp_match.group(1)] = self._all_ports[key]
+            if udp_match:
                 udp_closed_pattern = "(Socket Timed Out|DNSNoNameServers|DNSTimeOutDNS|DNSNoAnswer|DNSNXDOMAIN)"
                 if re.search(udp_closed_pattern, self._all_ports[key]):
-                    self._closed_udp_ports[key] = self._all_ports[key]
+                    self._closed_udp_ports[udp_match.group(1)] = self._all_ports[key]
                 else:
-                    self._open_udp_ports[key] = self._all_ports[key]
+                    self._open_udp_ports[udp_match.group(1)] = self._all_ports[key]
         try:
             assert len(self._all_ports) == len(self._open_tcp_ports) + len(
                 self.closed_tcp_ports
@@ -196,7 +198,7 @@ class FoundDevice:
     def __repr__(self) -> str:
         # This needs to be expanded and the test updated for it too
         return_string = f"{self.IP} : "
-        return_string += "\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
+        return_string += f"\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
         return_string += "\n\tOpen TCP Ports:"
         for key in self.open_tcp_ports.keys():
             return_string += f"\n\t\t{key} : {self.open_tcp_ports[key]}"
@@ -214,7 +216,7 @@ class FoundDevice:
     def __str__(self) -> str:
         # This needs to be expanded and the test updated for it too
         return_string = f"{self.IP} : "
-        return_string += "\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
+        return_string += f"\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
         return_string += "\n\tOpen TCP Ports:"
         for key in self.open_tcp_ports.keys():
             return_string += f"\n\t\t{key}"
@@ -225,9 +227,29 @@ class FoundDevice:
         for key in self.closed_tcp_ports.keys():
             return_string += f"\n\t\t{key}"
         return_string += "\n\tClosed UDP Ports:"
+
         for key in self.closed_udp_ports.keys():
             return_string += f"\n\t\t{key}"
         return return_string
+
+    def print_json(self):
+        """
+        Will take the class and make a JSON representation of it
+        ARgs:
+            none
+        Return:
+            JSON string for printing or output to a file
+        """
+        output = {
+            str(self.IP): {
+                "ping_response_times": self.response_time,
+                "Open_TCP_Ports_List": list(self.open_tcp_ports.keys()),
+                "Open_UDP_Ports_List": list(self.open_udp_ports.keys()),
+                "Closed_TCP_Ports_List": list(self.closed_tcp_ports.keys()),
+                "Closed_UDP_Ports_List": list(self.closed_udp_ports.keys()),
+            }
+        }
+        return json.dumps(output)
 
     """
         TODO:
@@ -500,6 +522,6 @@ if __name__ == "__main__":
     print(test_device02)
     print(test_device03)
     print(test_device04)
-
+    print(test_device01.print_json())
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")
