@@ -5,7 +5,7 @@
 """
 
 import ipaddress
-from os import add_dll_directory
+import os
 import re
 import time
 import pprint
@@ -91,15 +91,13 @@ class FoundDevice:
         udp_pattern = "UDP_(.*)"
         for key in self._all_ports.keys():
             if re.search(tcp_pattern, key):
-                tcp_closed_pattern = (
-                    "(ConnectionRefusedError|Connection error occurred)"
-                )
+                tcp_closed_pattern = "(ConnectionRefusedError|Connection error occurred|TimeoutError|UnicodeDecodeError|HTTPError|ConnectionError|OtherError)"
                 if re.search(tcp_closed_pattern, self._all_ports[key]):
                     self._closed_tcp_ports[key] = self._all_ports[key]
                 else:
                     self._open_tcp_ports[key] = self._all_ports[key]
             if re.search(udp_pattern, key):
-                udp_closed_pattern = "(Socket Timed Out|DNS operation timed out)"
+                udp_closed_pattern = "(Socket Timed Out|DNSNoNameServers|DNSTimeOutDNS|DNSNoAnswer|DNSNXDOMAIN)"
                 if re.search(udp_closed_pattern, self._all_ports[key]):
                     self._closed_udp_ports[key] = self._all_ports[key]
                 else:
@@ -197,7 +195,39 @@ class FoundDevice:
 
     def __repr__(self) -> str:
         # This needs to be expanded and the test updated for it too
-        return f"{self.IP} : response times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
+        return_string = f"{self.IP} : "
+        return_string += "\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
+        return_string += "\n\tOpen TCP Ports:"
+        for key in self.open_tcp_ports.keys():
+            return_string += f"\n\t\t{key} : {self.open_tcp_ports[key]}"
+        return_string += "\n\tOpen UDP Ports:"
+        for key in self.open_udp_ports.keys():
+            return_string += f"\n\t\t{key} : {self.open_udp_ports[key]}"
+        return_string += "\n\tClosed TCP Ports:"
+        for key in self.closed_tcp_ports.keys():
+            return_string += f"\n\t\t{key} : {self.closed_tcp_ports[key]}"
+        return_string += "\n\tClosed UDP Ports:"
+        for key in self.closed_udp_ports.keys():
+            return_string += f"\n\t\t{key} : {self.closed_udp_ports[key]}"
+        return return_string
+
+    def __str__(self) -> str:
+        # This needs to be expanded and the test updated for it too
+        return_string = f"{self.IP} : "
+        return_string += "\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
+        return_string += "\n\tOpen TCP Ports:"
+        for key in self.open_tcp_ports.keys():
+            return_string += f"\n\t\t{key}"
+        return_string += "\n\tOpen UDP Ports:"
+        for key in self.open_udp_ports.keys():
+            return_string += f"\n\t\t{key}"
+        return_string += "\n\tClosed TCP Ports:"
+        for key in self.closed_tcp_ports.keys():
+            return_string += f"\n\t\t{key}"
+        return_string += "\n\tClosed UDP Ports:"
+        for key in self.closed_udp_ports.keys():
+            return_string += f"\n\t\t{key}"
+        return return_string
 
     """
         TODO:
@@ -459,11 +489,17 @@ if __name__ == "__main__":
     test_device03 = FoundDevice(address03, response_time03)
     test_device04 = FoundDevice(address04, response_time04)
     test_device01.all_ports = ports01
-    print(f"test_device01.all_ports = {test_device01.all_ports}")
-    print(f"test_device01.open_tcp_ports = {test_device01.open_tcp_ports}")
-    print(f"test_device01.closed_tcp_ports = {test_device01.closed_tcp_ports}")
-    print(f"test_device01.open_udp_ports = {test_device01.open_udp_ports}")
-    print(f"test_device01.closed_udp_ports = {test_device01.closed_udp_ports}")
+    test_device02.all_ports = ports02
+    test_device03.all_ports = ports03
+    test_device04.all_ports = ports04
+    print(repr(test_device01))
+    print(repr(test_device02))
+    print(repr(test_device03))
+    print(repr(test_device04))
+    print(test_device01)
+    print(test_device02)
+    print(test_device03)
+    print(test_device04)
 
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")
