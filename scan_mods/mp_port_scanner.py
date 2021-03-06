@@ -6,6 +6,7 @@ import multiprocessing
 import time
 import os
 import sys
+import json
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
@@ -212,72 +213,19 @@ def port_scanner(address, domain_name=None):
         None : if no ports are open or responding
     """
     TCP_PORTS = (
-        20,
-        21,
-        22,
-        23,
-        25,
-        37,
-        43,
         53,
-        79,
         80,
-        88,
-        109,
-        110,
-        115,
-        118,
-        143,
-        162,
-        179,
-        194,
-        389,
-        443,
-        464,
-        465,
-        515,
-        530,
-        543,
-        544,
-        547,
-        993,
-        995,
-        1080,
-        3128,
-        3306,
-        3389,
-        5432,
-        5900,
-        5938,
-        8080,
     )
-    UDP_PORTS = (
-        43,
-        53,
-        67,
-        69,
-        88,
-        118,
-        123,
-        161,
-        162,
-        194,
-        464,
-        514,
-        530,
-        547,
-        995,
-        1080,
-        3389,
-        5938,
-        8080,
-    )
+    UDP_PORTS = (53,)
     # check to make sure that the address is correct first
     if not isinstance(address, ipaddress.IPv4Address):
         raise TypeError(f"{address} since it is not an IPv4Address")
     if domain_name is not None and not isinstance(domain_name, str):
         raise TypeError(f"{domain_name} is not a string")
-    return_dict = {}
+    return_dict = {
+        "TCP": {},
+        "UDP": {},
+    }
     # Scan the TCP Ports
     print(f"SCANNING TCP and UDP PORTS for {address}...")
     tcp_port_to_domain_list = []
@@ -292,24 +240,22 @@ def port_scanner(address, domain_name=None):
         if len(result) != 2:
             print(f"\n\n{result}\n\n")
             raise ValueError("TCP Scanner returned something incorrectly.")
-        key = result[0]
         if len(result[1]) < 1:
             scan_output = "Nothing returned from the server"
         else:
             scan_output = result[1]
-        return_dict[key] = scan_output
+        return_dict["TCP"][result[0][4:]] = scan_output
     with multiprocessing.Pool() as pool:
         udp_results = pool.map(__udp_scanner, udp_port_to_domain_list)
     for result in udp_results:
         if len(result) != 2:
             print(f"\n\n{result}\n\n")
             raise ValueError("UDP Scanner returned something incorrectly.")
-        key = result[0]
         if len(result[1]) < 1:
             scan_output = "Nothing returned from the server"
         else:
             scan_output = result[1]
-        return_dict[key] = scan_output
+        return_dict["UDP"][result[0][4:]] = scan_output
 
     return return_dict
 
@@ -333,7 +279,8 @@ if __name__ == "__main__":
     dict_of_ports = {}
     for address in address_list:
         for test_domain_name in test_domain_names:
-            dict_of_ports[address] = port_scanner(address, test_domain_name)
+            dict_of_ports[str(address)] = port_scanner(address, test_domain_name)
     print(dict_of_ports)
+    print(json.dumps(dict_of_ports))
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")
