@@ -71,6 +71,7 @@ from scan_mods.protocol_scanners.dns_scanner import tcp_dns_scanner
         5900: Virtual Network Computing (VNC). For desktop remote access.
         5938: TeamViewer, for the remote-control system, to facilitate data computer and data exchange.
         8080: HTTP/Web. An alternate HTTP protocol port.
+        8443: Hypertext Transfer Protocol Secure (HTTPS). HTTP protocol, with support for encryption. An alternate HTTPs protocol port.
 """
 
 
@@ -111,50 +112,72 @@ def __tcp_scanner(address_port_domain_name_tuple):
     TCP_key = f"TCP_{str(port)}"
     if port == 53:
         if domain_name is None:
-            scan_data = tcp_dns_scanner(dns_server=address)
+            tcp_return_dict = tcp_dns_scanner(dns_server=address)
         else:
-            scan_data = tcp_dns_scanner(dns_server=address, domainname=domain_name)
+            tcp_return_dict = tcp_dns_scanner(
+                dns_server=address, domainname=domain_name
+            )
         # print(f"TCP {port} = {scan_data.strip()}")
-        return (TCP_key, scan_data)
+        return (TCP_key, tcp_return_dict)
     elif port == 80:
-        scan_data = http_scanner(address)
+        tcp_return_dict = http_scanner(address)
         # print(f"TCP {port} = {scan_data.strip()}")
-        return (TCP_key, scan_data)
+        return (TCP_key, tcp_return_dict)
     elif port == 443:
-        scan_data = https_scanner(address)
+        tcp_return_dict = https_scanner(address)
         # print(f"TCP {port} = {scan_data.strip()}")
-        return (TCP_key, scan_data)
+        return (TCP_key, tcp_return_dict)
     elif port == 8080:
-        scan_data = http_scanner(address)
+        """
+        TODO:
+            Make a 8080 scanner
+        """
+        tcp_return_dict = http_scanner(address)
         # print(f"TCP {port} = {scan_data.strip()}")
-        return (TCP_key, scan_data)
+        return (TCP_key, tcp_return_dict)
+        return (TCP_key, tcp_return_dict)
+    elif port == 8443:
+        """
+        TODO:
+            Make a 8443 scanner
+        """
+        tcp_return_dict = https_scanner(address)
+        # print(f"TCP {port} = {scan_data.strip()}")
+        return (TCP_key, tcp_return_dict)
     scan_socket = socket.socket()
+    tcp_return_dict = {}
     try:
         scan_socket.connect((address, port))
     except ConnectionRefusedError:
-        output = "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+        tcp_return_dict = {
+            "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+        }
         # print(f"TCP {port} = {output}")
         scan_socket.close()
-        return (TCP_key, output)
+        return (TCP_key, tcp_return_dict)
     except TimeoutError:
         output = f"TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time"
         output += ", or established connection failed because connected host has failed to respond"
+        tcp_return_dict = {"ERROR": output}
         # print(f"TCP {port} = {output}")
         scan_socket.close()
-        return (TCP_key, output)
+        return (TCP_key, tcp_return_dict)
     MESSAGE = b"Hello, World!"
     scan_socket.send(MESSAGE)
     try:
         scan_data = scan_socket.recv(1024).decode()
     except UnicodeDecodeError:
-        scan_data = "UnicodeDecodeError -- 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+        tcp_return_dict = {
+            "ERROR": "UnicodeDecodeError -- 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+        }
         # print(f"TCP {port} = {scan_data}")
         scan_socket.close()
-        return (TCP_key, scan_data)
+        return (TCP_key, tcp_return_dict)
     else:
         # print(f"TCP {port} = {scan_data.strip()}")
+        tcp_return_dict = {"Return Information": scan_data.strip()}
         scan_socket.close()
-        return (TCP_key, scan_data.strip())
+        return (TCP_key, tcp_return_dict)
     return None
 
 
@@ -176,11 +199,14 @@ def __udp_scanner(address_port_domain_name_tuple):
     UDP_key = f"UDP_{str(port)}"
     if port == 53:
         if domain_name is None:
-            scan_data = udp_dns_scanner(dns_server=address)
+            udp_return_dict = udp_dns_scanner(dns_server=address)
         else:
-            scan_data = udp_dns_scanner(dns_server=address, domainname=domain_name)
+            udp_return_dict = udp_dns_scanner(
+                dns_server=address, domainname=domain_name
+            )
         # print(f"UDP {port} = {scan_data.strip()}")
-        return (UDP_key, scan_data)
+        return (UDP_key, udp_return_dict)
+    udp_return_dict = {}
     try:
         MESSAGE = b"Hello, World!"
         # socket.AF_INET is for the internet protocol and socket.sock_dgram is for UDP
@@ -190,12 +216,14 @@ def __udp_scanner(address_port_domain_name_tuple):
         scan_data, addr = scan_socket.recvfrom(1024)  # buffer size is 1024 bytes
         # print(f"UDP {port} = {scan_data.strip()}")
         scan_socket.close()
-        return (UDP_key, scan_data.strip())
+        udp_return_dict = {"Return Information": scan_data.strip()}
+        return (UDP_key, udp_return_dict.strip())
     except socket.timeout:
         scan_data = f"Socket Timed Out"
         # print(f"UDP {port} = {scan_data}")
+        udp_return_dict = {"ERROR": "Socket Timed Out"}
         scan_socket.close()
-        return (UDP_key, scan_data)
+        return (UDP_key, udp_return_dict)
     return None
 
 
@@ -213,10 +241,68 @@ def port_scanner(address, domain_name=None):
         None : if no ports are open or responding
     """
     TCP_PORTS = (
+        20,
+        21,
+        22,
+        23,
+        25,
+        37,
+        43,
         53,
+        79,
         80,
+        88,
+        109,
+        110,
+        115,
+        118,
+        143,
+        162,
+        179,
+        194,
+        389,
+        443,
+        464,
+        465,
+        515,
+        530,
+        543,
+        544,
+        547,
+        993,
+        995,
+        1080,
+        3128,
+        3306,
+        3389,
+        5432,
+        5900,
+        5938,
+        8080,
+        8443,
     )
-    UDP_PORTS = (53,)
+    UDP_PORTS = (
+        43,
+        53,
+        67,
+        69,
+        88,
+        118,
+        123,
+        161,
+        162,
+        194,
+        464,
+        514,
+        530,
+        547,
+        995,
+        1080,
+        3389,
+        5938,
+        8080,
+        8443,
+    )
     # check to make sure that the address is correct first
     if not isinstance(address, ipaddress.IPv4Address):
         raise TypeError(f"{address} since it is not an IPv4Address")
@@ -279,8 +365,11 @@ if __name__ == "__main__":
     dict_of_ports = {}
     for address in address_list:
         for test_domain_name in test_domain_names:
-            dict_of_ports[str(address)] = port_scanner(address, test_domain_name)
+            dict_of_ports[f"{str(address)}_{test_domain_name}"] = port_scanner(
+                address, test_domain_name
+            )
     print(dict_of_ports)
+    print("\n\n\n\n")
     print(json.dumps(dict_of_ports))
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")

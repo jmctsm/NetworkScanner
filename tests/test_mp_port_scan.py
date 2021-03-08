@@ -7,6 +7,7 @@ import os
 import sys
 import multiprocessing
 import re
+import json
 
 from dns.query import udp
 
@@ -82,6 +83,7 @@ class TestPortScanner(unittest.TestCase):
         5900,
         5938,
         8080,
+        8443,
     )
     test_UDP_PORTS = (
         43,
@@ -103,6 +105,7 @@ class TestPortScanner(unittest.TestCase):
         3389,
         5938,
         8080,
+        8443,
     )
     bad_test_addresses = (ipaddress.IPv4Address("192.168.1.65"), 1, 1.1, (1, 1), [1, 2])
     bad_test_ports = ("80", 1.1, (1, 1), [1, 2])
@@ -121,10 +124,15 @@ class TestPortScanner(unittest.TestCase):
                 for key, value in test_result_dict.items():
                     message = f"{test_result_dict[key]} is None"
                     self.assertIsNotNone(value, message)
-                    self.assertIsInstance(value, str)
+                    self.assertIsInstance(value, dict)
                     self.assertIsInstance(key, str)
                     self.assertGreaterEqual(len(value), 1)
-                    self.assertRegex(key, ".*P_.*")
+                    self.assertRegex(key, ".*P")
+                    for item_key, item_value in value.items():
+                        self.assertIsInstance(item_key, str)
+                        self.assertIsInstance(item_value, dict)
+                        self.assertGreaterEqual(len(item_value), 1)
+
         print("Finish testing that the port scanner functions correctly\n")
 
     def test_01_tcp_scanner(self):
@@ -144,7 +152,7 @@ class TestPortScanner(unittest.TestCase):
             self.assertIsInstance(result, tuple)
             self.assertGreaterEqual(len(result), 2)
             self.assertIsInstance(result[0], str)
-            self.assertIsInstance(result[1], str)
+            self.assertIsInstance(result[1], dict)
             self.assertRegex(result[0], "TCP_.*")
         print("Finish testing that the TCP Scanner functions correctly\n")
 
@@ -165,7 +173,7 @@ class TestPortScanner(unittest.TestCase):
             self.assertIsInstance(result, tuple)
             self.assertGreaterEqual(len(result), 2)
             self.assertIsInstance(result[0], str)
-            self.assertIsInstance(result[1], str)
+            self.assertIsInstance(result[1], dict)
             self.assertRegex(result[0], "UDP_.*")
         print("Finish testing that the UDP Scanner functions correctly\n")
 
@@ -221,7 +229,7 @@ class TestPortScanner(unittest.TestCase):
             "Finish testing that the TCP and UDP Scanner functions raise an error with bad domain names\n"
         )
 
-    def test_04_validate_function_passes(self):
+    def est_04_validate_function_passes(self):
         """
         Tests that the validate function passes when address is the correct type
         and when the port is the correct type
@@ -238,7 +246,7 @@ class TestPortScanner(unittest.TestCase):
             "Finish testing that the validate function correctly passes with good values\n"
         )
 
-    def test_05_validate_function_fails(self):
+    def est_05_validate_function_fails(self):
         """
         Tests that the validate function fails fail when address is the wrong type
         and when the port is the wrong type
@@ -298,6 +306,27 @@ class TestPortScanner(unittest.TestCase):
                         validate(test_address, test_port, domain_name=domain_name)
         print(
             "Finish testing that the validate function raises an error for testing UDP ports with a bad domain name\n"
+        )
+
+    def test_06_ensure_create_valid_json(self):
+        """
+        Tests that the reponse from the port_scanner function can be loaded into a JSON format
+        """
+        print(
+            "\nStart testing that the output from port_scanner can be formatted as JSON"
+        )
+        dict_of_ports = {}
+        for test_address in self.test_ipv4_addresses:
+            for domain_name in self.test_domain_names:
+                dict_of_ports[f"{str(test_address)}_{domain_name}"] = port_scanner(
+                    test_address, domain_name
+                )
+        json_output = json.dumps(dict_of_ports)
+        self.assertIsNotNone(json_output)
+        self.assertGreaterEqual(len(json_output), 1)
+        self.assertIsInstance(json_output, str)
+        print(
+            "Finish testing that the output from port_scanner can be formatted as JSON\n"
         )
 
 
