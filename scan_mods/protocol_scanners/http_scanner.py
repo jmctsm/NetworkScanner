@@ -7,7 +7,6 @@
 from typing import Type
 import requests
 import ipaddress
-from requests import adapters
 import time
 import json
 
