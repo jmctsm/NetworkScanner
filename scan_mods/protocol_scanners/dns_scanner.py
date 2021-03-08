@@ -8,6 +8,25 @@ import ipaddress
 import dns.query
 import dns.zone
 import time
+import json
+
+
+def __strip_alligators(string):
+    """
+        This will strip all < > from a string and return it so that a JSON linter quits barking at me
+
+    Args:
+        string (str) : string to strip
+
+    Return:
+        string : original strin minus < and >
+    """
+    try:
+        first_replace = str(string).replace("<", "[")
+        second_replace = first_replace.replace(">", "]")
+    except TypeError:
+        return f"Cannot convert to a string to remove '<' or '>'"
+    return second_replace
 
 
 def udp_dns_scanner(dns_server=None, domainname=None):
@@ -19,11 +38,12 @@ def udp_dns_scanner(dns_server=None, domainname=None):
         domainname (str) : optional string for the domain to test against
 
     Return:
-        str : string of either a problem or a string of the answers from the server
+        dict : dict of either a problem or a dict of the answers from the server
 
     """
     server_list = []
-    server, domain_name = validate_server_domain_name(dns_server, domainname)
+    return_dict = {}
+    server, domain_name = __validate_server_domain_name(dns_server, domainname)
     server_list.append(server)
     if len(server_list) > 1 or len(server_list) < 1:
         raise ValueError(
@@ -34,36 +54,47 @@ def udp_dns_scanner(dns_server=None, domainname=None):
     try:
         response = udp_resolver.resolve(domain_name, "SOA")
     except dns.resolver.NoNameservers:
-        return (
-            f"DNSNoNameServers -- {server} failed to answer the query for {domain_name}"
-        )
+        return_dict = {
+            "ERROR": f"DNSNoNameServers -- {server} failed to answer the query for {domain_name}"
+        }
+        return return_dict
     except dns.exception.Timeout:
-        return f"DNSTimeOutDNS -- operation timed out.  Port is more than likely blocked or not open"
+        return_dict = {
+            "ERROR": f"DNSTimeOutDNS -- operation timed out.  Port is more than likely blocked or not open"
+        }
+        return return_dict
     except dns.resolver.NoAnswer:
-        return f"DNSNoAnswer -- DNS response does not contain an answer to the query: {domain_name} IN SOA"
+        return_dict = {
+            "ERROR": f"DNSNoAnswer -- DNS response does not contain an answer to the query: {domain_name} IN SOA"
+        }
+        return return_dict
     except dns.resolver.NXDOMAIN:
-        return f"DNSNXDOMAIN -- The DNS query name does not exist: {domain_name}"
-    return_string = f"Canonical Name : {response.canonical_name}"
-    response.__dict__.pop("canonical_name")
+        return_dict = {
+            "ERROR": f"DNSNXDOMAIN -- The DNS query name does not exist: {domain_name}"
+        }
+        return return_dict
     for key, value in response.__dict__.items():
         if key == "rdtype":
-            return_string += f"\n\tRecord Type = {value.name}"
+            return_dict["Record Type"] = value.name
         elif key == "rdclass":
-            return_string += f"\n\tRecord Class = {value.name}"
+            return_dict["Record Class"] = value.name
         elif isinstance(response.__dict__.get(key, None), str):
-            return_string += f"\n\t{key} = {value}"
+            return_dict[key] = value
         elif isinstance(response.__dict__.get(key, None), int):
-            return_string += f"\n\t{key} = {str(response.__dict__.get(key, None))}"
+            return_dict[key] = str(response.__dict__.get(key, None))
         elif isinstance(response.__dict__.get(key, None), float):
-            return_string += f"\n\t{key} = {str(response.__dict__.get(key, None))}"
+            return_dict[key] = str(response.__dict__.get(key, None))
         elif isinstance(value, dns.message.ChainingResult):
-            return_string += f"\n\tAnswer = {value.answer}"
-            return_string += f"\n\tMinimum TTL = {value.minimum_ttl}"
+            # return_dict["Answer"] = value.answer
+            return_dict["Answer"] = __strip_alligators(value.answer)
+            return_dict["Canonical Name"] = __strip_alligators(value.canonical_name)
+            return_dict["Minimum TTL"] = __strip_alligators(value.minimum_ttl)
+            return_dict["CNAMES"] = value.cnames
         elif isinstance(value, dns.rrset.RRset):
-            return_string += f"\n\tDNS Record Set = {value}"
+            return_dict["DNS Record Set"] = value.__str__()
         elif isinstance(value, dns.name.Name):
-            return_string += f"\n\tName = {value}"
-    return return_string
+            return_dict["Name"] = value.__str__()
+    return return_dict
 
 
 def tcp_dns_scanner(dns_server=None, domainname=None):
@@ -78,28 +109,46 @@ def tcp_dns_scanner(dns_server=None, domainname=None):
         str : string of either a problem or a string of the answers from the server
 
     """
-    server, domain_name = validate_server_domain_name(dns_server, domainname)
+    server, domain_name = __validate_server_domain_name(dns_server, domainname)
+    return_dict = {}
     try:
         z = dns.zone.from_xfr(dns.query.xfr(server, domain_name))
     except dns.xfr.TransferError:
-        return f"Zone Transfer Error for {domain_name} on server {server}"
+        return_dict = {
+            "ERROR": f"DNSTransferError -- Zone Transfer Error for {domain_name} on server {server}"
+        }
+        return return_dict
     except ConnectionRefusedError:
-        return "ConnectionRefusedError: No connection could be made because the target machine actively refused it"
+        return_dict = {
+            "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+        }
+        return return_dict
     except ConnectionResetError:
-        return "ConnectionResetError: An existing connection was forcibly closed by the remote host"
+        return_dict = {
+            "ERROR": "ConnectionResetError -- An existing connection was forcibly closed by the remote host"
+        }
+        return return_dict
     except dns.exception.FormError:
-        return "FormError: No answer or RRset not for name"
+        return_dict = {"ERROR": "DNSFormError -- No answer or RRset not for name"}
+        return return_dict
     except TimeoutError as ex:
-        return f"TimeoutError: {ex}"
-    return_string = f"Zone transfer for {domain_name} from server {server}"
+        return_dict = {"ERROR": f"TimeoutError -- {ex}"}
+        return return_dict
+    return_dict["Domain_Name"] = domain_name
+    return_dict["Server"] = server
     for node in sorted(z.nodes.keys()):
         split_lines = z[node].to_text(node).splitlines()
+        return_string = ""
         for entry in split_lines:
-            return_string += f"\n\t{entry}"
-    return return_string
+            return_string += f"[{entry}]"
+        if isinstance(node, dns.name.Name):
+            return_dict[node.__str__()] = return_string
+        else:
+            return_dict[node] = return_string
+    return return_dict
 
 
-def validate_server_domain_name(server, domain_name):
+def __validate_server_domain_name(server, domain_name):
     """
         Validates the server and domain_name variables
 
@@ -143,14 +192,19 @@ if __name__ == "__main__":
         "192.168.1.65",
         "192.168.89.80",
     ]
+    dict_of_ports = {}
     local_domain_name = ["test.local", "www.google.com", "google.com", "test.test"]
     for dns_server in local_dns_server:
         for domain in local_domain_name:
-            print(
-                f"{dns_server}:{domain} <UDP> = {udp_dns_scanner(dns_server, domain)}"
+            dict_of_ports[f"{str(dns_server)}_UDP_{domain}"] = udp_dns_scanner(
+                dns_server, domain
             )
-            print(
-                f"{dns_server}:{domain} <TCP> = {tcp_dns_scanner(dns_server, domain)}"
+            dict_of_ports[f"{str(dns_server)}_TCP_{domain}"] = tcp_dns_scanner(
+                dns_server, domain
             )
+    print(dict_of_ports)
+    for key in dict_of_ports.keys():
+        print(f"{key} = {dict_of_ports[key]}")
+    print(f"\n\n\n{json.dumps(dict_of_ports)}")
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")

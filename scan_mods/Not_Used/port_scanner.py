@@ -3,6 +3,12 @@
 import ipaddress
 import socket
 import time
+import os
+import sys
+
+currentdir = os.path.dirname(os.path.realpath(__file__))
+parentdir = os.path.dirname(currentdir)
+sys.path.append(parentdir)
 
 # Protocol Scanner imports
 from scan_mods.protocol_scanners.http_scanner import http_scanner
@@ -104,7 +110,7 @@ def tcp_scanner(address, port, domain_name=None):
             scan_data = tcp_dns_scanner(dns_server=address)
         else:
             scan_data = tcp_dns_scanner(dns_server=address, domainname=domain_name)
-        print(f"TCP {port} = {scan_data.strip()}")
+        print(f"TCP {port} = {scan_data}")
         return scan_data
     elif port == 80:
         scan_data = http_scanner(address)
@@ -167,7 +173,7 @@ def udp_scanner(address, port, domain_name=None):
             scan_data = udp_dns_scanner(dns_server=address)
         else:
             scan_data = udp_dns_scanner(dns_server=address, domainname=domain_name)
-        print(f"UDP {port} = {scan_data.strip()}")
+        print(f"UDP {port} = {scan_data}")
         return scan_data
     try:
         MESSAGE = b"Hello, World!"
@@ -200,96 +206,40 @@ def port_scanner(address, domain_name=None):
         dict : dictionary of ports and headers that are open on the box
         None : if no ports are open or responding
     """
-    TCP_PORTS = (
-        20,
-        21,
-        22,
-        23,
-        25,
-        37,
-        43,
-        53,
-        79,
-        80,
-        88,
-        109,
-        110,
-        115,
-        118,
-        143,
-        162,
-        179,
-        194,
-        389,
-        443,
-        464,
-        465,
-        515,
-        530,
-        543,
-        544,
-        547,
-        993,
-        995,
-        1080,
-        3128,
-        3306,
-        3389,
-        5432,
-        5900,
-        5938,
-        8080,
-    )
-    UDP_PORTS = (
-        43,
-        53,
-        67,
-        69,
-        88,
-        118,
-        123,
-        161,
-        162,
-        194,
-        464,
-        514,
-        530,
-        547,
-        995,
-        1080,
-        3389,
-        5938,
-        8080,
-    )
+    TCP_PORTS = (53,)
+    UDP_PORTS = (53,)
     # check to make sure that the address is correct first
     if not isinstance(address, ipaddress.IPv4Address):
         raise TypeError(f"{address} since it is not an IPv4Address")
     if domain_name is not None and not isinstance(domain_name, str):
         raise TypeError(f"{domain_name} is not a string")
-    return_dict = {}
+    return_dict = {
+        "TCP": {},
+        "UDP": {},
+    }
     # Scan the TCP Ports
     print(f"SCANNING TCP PORTS for {address}...")
     for port in TCP_PORTS:
-        TCP_key = f"TCP_{str(port)}"
+        TCP_key = str(port)
         if domain_name is None:
             scan_result = tcp_scanner(str(address), port)
         else:
             scan_result = tcp_scanner(str(address), port, domain_name)
         if len(scan_result) < 1:
             scan_result = "Nothing returned from the server"
-        return_dict[TCP_key] = scan_result
+        return_dict["TCP"][TCP_key] = scan_result
 
     # Scan the UDP Ports
     print(f"SCANNING UDP PORTS for {address}...")
     for port in UDP_PORTS:
-        UDP_key = f"UDP_{str(port)}"
+        UDP_key = str(port)
         if domain_name is None:
             scan_result = udp_scanner(str(address), port)
         else:
             scan_result = udp_scanner(str(address), port, domain_name)
         if len(scan_result) < 1:
             scan_result = "***Nothing returned from the server***"
-        return_dict[UDP_key] = scan_result
+        return_dict["UDP"][TCP_key] = scan_result
 
     return return_dict
 

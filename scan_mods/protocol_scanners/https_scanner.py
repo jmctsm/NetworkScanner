@@ -4,11 +4,10 @@
     Connect to a web server and grab the HTTPS headers
 """
 
-from typing import Type
 import requests
 import ipaddress
-from requests import adapters
 import time
+import json
 
 # Disable the SSL warning
 import urllib3
@@ -40,6 +39,7 @@ def https_scanner(address):
     adapter = requests.adapters.HTTPAdapter(max_retries=retry)
     session.mount("https://", adapter)
     url = f"https://{address}"
+    return_dict = {}
     while True:
         try:
             response = session.get(url, verify=False)
@@ -47,29 +47,29 @@ def https_scanner(address):
             response.raise_for_status()
         except requests.exceptions.HTTPError as http_err:
             session.close()
-            return f"HTTPError -- {http_err}"
+            return_dict["ERROR"] = f"HTTPError -- {http_err}"
+            return return_dict
         except requests.exceptions.ConnectionError as conn_err:
             session.close()
-            return f"ConnectionError -- {conn_err}"
+            return_dict["ERROR"] = f"ConnectionError -- {conn_err}"
+            return return_dict
         except Exception as err:
             session.close()
-            return f"OtherError -- {err}"
-        headers_dict = response.headers
-        return_string = (
-            f"Server : {headers_dict.get('Server', 'None Listed in Headers')}"
-        )
-        headers_dict.pop("Server", None)
-        for key in headers_dict.keys():
-            return_string += (
-                f"\n\t{key} : {headers_dict.get(key, 'None Listed in Headers')}"
-            )
+            return_dict["ERROR"] = f"OtherError -- {err}"
+            return return_dict
+        for key in response.headers.keys():
+            return_dict[key] = response.headers.get(key, "None Listed in Headers")
         session.close()
-        return return_string
+        return return_dict
 
 
 if __name__ == "__main__":
     start_time = time.time()
-    for address in ["192.168.1.65", "192.168.89.80"]:
-        print(https_scanner(address))
+    dict_of_responses = {}
+    for address in ["192.168.1.65", "192.168.89.80", "10.0.1.1", "192.168.1.254"]:
+        dict_of_responses[address] = https_scanner(address)
+    print(dict_of_responses)
+    print("\n\n\n\n")
+    print(json.dumps(dict_of_responses))
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")
