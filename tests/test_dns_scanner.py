@@ -4,6 +4,7 @@ import unittest
 import os
 import sys
 import ipaddress
+import json
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
@@ -210,6 +211,68 @@ class TestPortScanner(unittest.TestCase):
 
         print(
             "Finished the test for the __strip_alligators function raises an error...\n"
+        )
+
+    def test_06_tcp_udp_can_be_used_in_json(self):
+        """
+        This will make sure the tcp and udp scanner output can be used in json
+        """
+        print(
+            "\nStarting the test that the udp and tcp scanners output can be used in JSON..."
+        )
+        dict_of_results = {}
+        for server in self.test_servers:
+            for domain in self.local_domain_name:
+                dict_of_results[
+                    f"{str(server)}_UDP_{domain}"
+                ] = scan_mods.protocol_scanners.dns_scanner.udp_dns_scanner(
+                    server, domain
+                )
+                dict_of_results[
+                    f"{str(server)}_TCP_{domain}"
+                ] = scan_mods.protocol_scanners.dns_scanner.tcp_dns_scanner(
+                    server, domain
+                )
+        json_output = json.dumps(dict_of_results)
+        self.assertIsNotNone(json_output)
+        self.assertGreaterEqual(len(json_output), 1)
+        self.assertIsInstance(json_output, str)
+        dict_of_results = {}
+        for server in self.test_servers:
+            for domain in self.local_domain_name:
+                dict_of_results[
+                    f"{str(server)}_UDP_{domain}"
+                ] = scan_mods.protocol_scanners.dns_scanner.udp_dns_scanner(
+                    domainname=domain
+                )
+                dict_of_results[
+                    f"{str(server)}_TCP_{domain}"
+                ] = scan_mods.protocol_scanners.dns_scanner.tcp_dns_scanner(
+                    domainname=domain
+                )
+        json_output = json.dumps(dict_of_results)
+        self.assertIsNotNone(json_output)
+        self.assertGreaterEqual(len(json_output), 1)
+        self.assertIsInstance(json_output, str)
+        dict_of_results = {}
+        for server in self.test_servers:
+            for domain in self.local_domain_name:
+                dict_of_results[
+                    f"{str(server)}_UDP_{domain}"
+                ] = scan_mods.protocol_scanners.dns_scanner.udp_dns_scanner(
+                    dns_server=server
+                )
+                dict_of_results[
+                    f"{str(server)}_TCP_{domain}"
+                ] = scan_mods.protocol_scanners.dns_scanner.tcp_dns_scanner(
+                    dns_server=server
+                )
+        json_output = json.dumps(dict_of_results)
+        self.assertIsNotNone(json_output)
+        self.assertGreaterEqual(len(json_output), 1)
+        self.assertIsInstance(json_output, str)
+        print(
+            "Finished the test that the udp and tcp scanners output can be used in JSON...\n"
         )
 
 
