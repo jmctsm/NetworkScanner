@@ -120,28 +120,19 @@ def __tcp_scanner(address_port_domain_name_tuple):
         # print(f"TCP {port} = {scan_data.strip()}")
         return (TCP_key, tcp_return_dict)
     elif port == 80:
-        tcp_return_dict = http_scanner(address)
+        tcp_return_dict = http_scanner(address, port)
         # print(f"TCP {port} = {scan_data.strip()}")
         return (TCP_key, tcp_return_dict)
     elif port == 443:
-        tcp_return_dict = https_scanner(address)
+        tcp_return_dict = https_scanner(address, port)
         # print(f"TCP {port} = {scan_data.strip()}")
         return (TCP_key, tcp_return_dict)
     elif port == 8080:
-        """
-        TODO:
-            Make a 8080 scanner
-        """
-        tcp_return_dict = http_scanner(address)
+        tcp_return_dict = http_scanner(address, port)
         # print(f"TCP {port} = {scan_data.strip()}")
         return (TCP_key, tcp_return_dict)
-        return (TCP_key, tcp_return_dict)
     elif port == 8443:
-        """
-        TODO:
-            Make a 8443 scanner
-        """
-        tcp_return_dict = https_scanner(address)
+        tcp_return_dict = https_scanner(address, port)
         # print(f"TCP {port} = {scan_data.strip()}")
         return (TCP_key, tcp_return_dict)
     scan_socket = socket.socket()
