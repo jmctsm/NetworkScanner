@@ -32,6 +32,7 @@ class TestPortScanner(unittest.TestCase):
         ipaddress.IPv4Address("10.0.1.1"),
         ipaddress.IPv4Address("192.168.89.80"),
         ipaddress.IPv4Address("192.168.1.254"),
+        ipaddress.IPv4Address("192.168.89.22"),
     ]
     test_str_addresses = [
         "192.168.1.65",

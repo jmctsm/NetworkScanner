@@ -318,7 +318,7 @@ def port_scanner(address, domain_name=None):
             print(f"\n\n{result}\n\n")
             raise ValueError("TCP Scanner returned something incorrectly.")
         if len(result[1]) < 1:
-            scan_output = "Nothing returned from the server"
+            scan_output = {"Nothing": "Nothing returned from the server"}
         else:
             scan_output = result[1]
         return_dict["TCP"][result[0][4:]] = scan_output
@@ -329,7 +329,7 @@ def port_scanner(address, domain_name=None):
             print(f"\n\n{result}\n\n")
             raise ValueError("UDP Scanner returned something incorrectly.")
         if len(result[1]) < 1:
-            scan_output = "Nothing returned from the server"
+            scan_output = {"Nothing": "Nothing returned from the server"}
         else:
             scan_output = result[1]
         return_dict["UDP"][result[0][4:]] = scan_output
@@ -345,6 +345,7 @@ if __name__ == "__main__":
         ipaddress.ip_address("10.0.1.254"),
         ipaddress.ip_address("192.168.89.80"),
         ipaddress.ip_address("192.168.1.254"),
+        ipaddress.ip_address("192.168.89.22"),
     ]
     test_domain_names = [
         "test.local",
