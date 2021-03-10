@@ -78,10 +78,10 @@ class FoundDevice:
                         else:
                             raise TypeError(
                                 f"{ports_headers[key]} is not a dictionary.  "
-                                f"It was {type(ports_headers[key])}"
+                                f"It was {type(ports_headers[key]).__name__}"
                             )
                     else:
-                        raise ValueError(
+                        raise KeyError(
                             f"{key} does not follow standard of 'TCP' or 'UDP'"
                         )
             else:
@@ -93,10 +93,20 @@ class FoundDevice:
                                     self._all_ports[key][port_key] = ports_headers[key][
                                         port_key
                                     ]
+                                else:
+                                    raise TypeError(
+                                        f"{ports_headers[key]} is not a dictionary.  "
+                                        f"It was {type(ports_headers[key]).__name__}"
+                                    )
+                        else:
+                            raise TypeError(
+                                f"{ports_headers[key]} is not a dictionary.  "
+                                f"It was {type(ports_headers[key]).__name__}"
+                            )
         else:
             raise TypeError(
-                f"ports variable passed in was not a dictionary.  It was {type(ports_headers)}."
-                f"You may want to fix that."
+                f"ports variable passed in was not a dictionary.  It was {type(ports_headers).__name__}."
+                f"  You may want to fix that."
             )
 
         for protocol_key in self._all_ports.keys():
@@ -116,7 +126,7 @@ class FoundDevice:
                                 port_key
                             ]
                     else:
-                        raise TypeError(f"{type(port_key)} is not a dict.")
+                        raise TypeError(f"{type(port_key).__name__} is not a dict.")
             if protocol_key == "UDP":
                 for port_key in self._all_ports["UDP"].keys():
                     if isinstance(self._all_ports["UDP"][port_key], dict):
@@ -133,7 +143,7 @@ class FoundDevice:
                                 port_key
                             ]
                     else:
-                        raise TypeError(f"{type(port_key)} is not a dict.")
+                        raise TypeError(f"{type(port_key).__name__} is not a dict.")
         try:
             assert len(self._all_ports["TCP"]) == len(self._open_tcp_ports) + len(
                 self._closed_tcp_ports
@@ -264,20 +274,23 @@ class FoundDevice:
         Return:
             JSON string for printing or output to a file
         """
-        output = {
-            str(self.IP): {
-                "ping_response_times": self.response_time,
-            }
+        output = {}
+        output[str(self.IP)] = {
+            "ping_response_times": self.response_time,
         }
         if self.all_ports is not None:
-            output = {
-                str(self.IP): {
-                    "Open_TCP_Ports_List": list(self.open_tcp_ports.keys()),
-                    "Open_UDP_Ports_List": list(self.open_udp_ports.keys()),
-                    "Closed_TCP_Ports_List": list(self.closed_tcp_ports.keys()),
-                    "Closed_UDP_Ports_List": list(self.closed_udp_ports.keys()),
-                }
-            }
+            output[str(self.IP)]["Open_TCP_Ports_List"] = list(
+                self.open_tcp_ports.keys()
+            )
+            output[str(self.IP)]["Open_UDP_Ports_List"] = list(
+                self.open_udp_ports.keys()
+            )
+            output[str(self.IP)]["Closed_TCP_Ports_List"] = list(
+                self.closed_tcp_ports.keys()
+            )
+            output[str(self.IP)]["Closed_UDP_Ports_List"] = list(
+                self.closed_udp_ports.keys()
+            )
         return json.dumps(output)
 
     def print_json_long(self):
@@ -288,20 +301,15 @@ class FoundDevice:
         Return:
             JSON string for printing or output to a file
         """
-        output = {
-            str(self.IP): {
-                "ping_response_times": self.response_time,
-            }
+        output = {}
+        output[str(self.IP)] = {
+            "ping_response_times": self.response_time,
         }
         if self.all_ports is not None:
-            output = {
-                str(self.IP): {
-                    "Open_TCP_Ports_List": self.open_tcp_ports,
-                    "Open_UDP_Ports_List": self.open_udp_ports,
-                    "Closed_TCP_Ports_List": self.closed_tcp_ports,
-                    "Closed_UDP_Ports_List": self.closed_udp_ports,
-                }
-            }
+            output[str(self.IP)]["Open_TCP_Ports_List"] = self.open_tcp_ports
+            output[str(self.IP)]["Open_UDP_Ports_List"] = self.open_udp_ports
+            output[str(self.IP)]["Closed_TCP_Ports_List"] = self.closed_tcp_ports
+            output[str(self.IP)]["Closed_UDP_Ports_List"] = self.closed_udp_ports
         return json.dumps(output)
 
     """

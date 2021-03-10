@@ -1,7 +1,9 @@
+from typing import Type
 import unittest
 import ipaddress
 import os
 import sys
+import json
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
@@ -641,7 +643,7 @@ class TestFoundDevice(unittest.TestCase):
         self.assertEqual(test_class.all_ports, self.test_ports01)
         print("Finish testing port getter works")
 
-    def est_017_testing_port_setter_type_error(self):
+    def test_017_testing_port_setter_type_error(self):
         """
         Tests that the port setter raises correct errors
         """
@@ -652,30 +654,49 @@ class TestFoundDevice(unittest.TestCase):
             "UDP_1080": "Socket Timed Out",
         }
         test_fail_ports_01 = {
-            "TPC_515": "No connection could be made because the target machine actively refused it",
-            "UPD_995": "Socket Timed Out",
+            "TPC": {
+                "515": {
+                    "ERROR": "No connection could be made because the target machine actively refused it"
+                },
+            },
+            "UPD": {
+                "995": {"ERROR": "Socket Timed Out"},
+            },
         }
         test_fail_ports_02 = {
-            "TCP_515": 1,
-            "UDP_995": 1.2,
-            "UDP_995": (1, 2),
-            "UDP_995": [1, 2],
-            "UDP_995": {"1": 2},
+            "TCP": [
+                (1, 1),
+                1,
+                "a",
+            ],
+            "UDP": {
+                (1, 1),
+                1,
+                "a",
+            },
         }
-        test_class = FoundDevice(self.test_ip, self.test_time)
+        test_fail_03 = 1
+        test_class_01 = FoundDevice(self.test_ip01, self.test_time01)
+        test_class_02 = FoundDevice(self.test_ip01, self.test_time01)
+        # catches Exception that Key is wrong name
         for key, value in test_fail_ports_01.items():
-            with self.assertRaises(ValueError):
-                test_class.ports = {key: value}
+            with self.assertRaises(KeyError):
+                test_class_01.all_ports = {key: value}
+        # catches exception that is adding to .all_ports
         for key, value in test_fail_ports_02.items():
             with self.assertRaises(TypeError):
-                test_class.ports = {key: value}
-        test_class.ports = test_initial_ports
-        for key, value in test_fail_ports_01.items():
-            with self.assertRaises(ValueError):
-                test_class.ports = {key: value}
+                test_class_01.all_ports = {key: value}
+        # catches exception when creating .all_ports and dict value is not a dict
         for key, value in test_fail_ports_02.items():
             with self.assertRaises(TypeError):
-                test_class.ports = {key: value}
+                test_class_02.all_ports = {key: value}
+        # catches TypeError for not a dictionary when adding to .all_ports
+        for key, value in test_fail_ports_02.items():
+            with self.assertRaises(TypeError):
+                test_class_02.all_ports = {key: value}
+        # catch error is passed a non-dict type from the beginning
+        with self.assertRaises(TypeError):
+            test_class_01.all_ports = test_fail_03
         print("Finish testing port setter raises raises correct errors")
 
     def test_018_response_time_not_tuple_of_floats(self):
@@ -854,6 +875,104 @@ class TestFoundDevice(unittest.TestCase):
         print(
             "Finish testing that the property open_tcp_ports, open_udp_ports, closed_tcp_ports, and closed_udp_ports will fail when trying to set directly\n"
         )
+
+    def test_021_class_str(self):
+        """
+        Tests that you class __str__ method is correct
+        """
+        print("\nStart testing that the __str__ method is correct")
+        test_class = FoundDevice(self.test_ip01, self.test_time01)
+        self.assertEqual(
+            str(test_class),
+            f"{self.test_ip01} : \n\tresponse times are {self.test_time01[0]} ms, {self.test_time01[1]} ms, {self.test_time01[2]} ms",
+        )
+        test_class.all_ports = self.test_ports01
+        self.assertRegex(
+            str(test_class),
+            f"{self.test_ip01} : \n\tresponse times are {self.test_time01[0]} ms, {self.test_time01[1]} ms, {self.test_time01[2]} ms\n\tOpen TCP Ports:.*",
+        )
+        print("Finish testing that the __str__ method is correct\n")
+
+    def test_022_json_short(self):
+        """
+        Tests that the json_short function works correctly
+        """
+        print("\nStart testing that the json_short function works correctly")
+        test_class = FoundDevice(self.test_ip01, self.test_time01)
+        test_string = {"192.168.1.65": {"ping_response_times": [1.1, 1.35, 1.82]}}
+        self.assertEqual(test_class.print_json_short(), json.dumps(test_string))
+        test_ports = {
+            "TCP": {
+                "20": {
+                    "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+                },
+                "21": {"Return Information": "220 (vsFTPd 3.0.3)"},
+                "22": {"Return Information": "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.1"},
+                "23": {
+                    "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+                },
+            },
+            "UDP": {
+                "43": {"ERROR": "Socket Timed Out"},
+                "53": {
+                    "Name": "test.local.",
+                    "Record Type": "SOA",
+                    "Record Class": "IN",
+                    "nameserver": "192.168.89.80",
+                    "port": "53",
+                    "Answer": "test.local. 604800 IN SOA test.local. root.test.local. 2 604800 86400 2419200 604800",
+                    "Canonical Name": "test.local.",
+                    "Minimum TTL": "604800",
+                    "CNAMES": [],
+                    "DNS Record Set": "test.local. 604800 IN SOA test.local. root.test.local. 2 604800 86400 2419200 604800",
+                    "expiration": "1615900227.7461846",
+                },
+                "67": {"ERROR": "Socket Timed Out"},
+            },
+        }
+        test_string = {
+            "192.168.1.65": {
+                "ping_response_times": [1.1, 1.35, 1.82],
+                "Open_TCP_Ports_List": {
+                    "21": {"Return Information": "220 (vsFTPd 3.0.3)"},
+                    "22": {
+                        "Return Information": "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.1"
+                    },
+                },
+                "Open_UDP_Ports_List": {
+                    "53": {
+                        "Name": "test.local.",
+                        "Record Type": "SOA",
+                        "Record Class": "IN",
+                        "nameserver": "192.168.89.80",
+                        "port": "53",
+                        "Answer": "test.local. 604800 IN SOA test.local. root.test.local. 2 604800 86400 2419200 604800",
+                        "Canonical Name": "test.local.",
+                        "Minimum TTL": "604800",
+                        "CNAMES": [],
+                        "DNS Record Set": "test.local. 604800 IN SOA test.local. root.test.local. 2 604800 86400 2419200 604800",
+                        "expiration": "1615900227.7461846",
+                    }
+                },
+                "Closed_TCP_Ports_List": {
+                    "20": {
+                        "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+                    },
+                    "23": {
+                        "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+                    },
+                },
+                "Closed_UDP_Ports_List": {
+                    "43": {"ERROR": "Socket Timed Out"},
+                    "67": {"ERROR": "Socket Timed Out"},
+                },
+            }
+        }
+        test_class.all_ports = test_ports
+        self.maxDiff = None
+        self.assertEqual(test_class.print_json_long(), json.dumps(test_string))
+
+        print("Finish testing that the json_short function works correctly\n")
 
 
 if __name__ == "__main__":
