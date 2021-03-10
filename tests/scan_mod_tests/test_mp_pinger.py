@@ -6,7 +6,8 @@ import sys
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir)
+grandparentdir = os.path.dirname(parentdir)
+sys.path.append(grandparentdir)
 
 from scan_mods.mp_pinger import pinger
 from scan_mods.mp_pinger import __ping_address as ping_address
