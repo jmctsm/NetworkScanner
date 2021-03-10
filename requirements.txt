@@ -1,16 +1,18 @@
 #pythonping>=1.0.15
 #ipaddress>=1.0
 #re>=2.2.1
-#socket
+
+# Core Package Requirements
+# multiprocessing
+# time
+# json
+# re 
+# socket
+
+# Packages to install
 pythonping
 ipaddress
-re
-socket
 requests
 urllib3
-# dnspython for dns. 
-dns.flags
-dns.resolver
-multiprocessing
-time
-json
+# dnspython for dns.flags and dns.resolver
+dnspython

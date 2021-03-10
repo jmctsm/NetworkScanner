@@ -13,7 +13,8 @@ from dns.query import udp
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir)
+grandparentdir = os.path.dirname(parentdir)
+sys.path.append(grandparentdir)
 
 from scan_mods.mp_port_scanner import port_scanner
 from scan_mods.mp_port_scanner import __tcp_scanner as tcp_scanner
@@ -31,6 +32,7 @@ class TestPortScanner(unittest.TestCase):
         ipaddress.IPv4Address("10.0.1.1"),
         ipaddress.IPv4Address("192.168.89.80"),
         ipaddress.IPv4Address("192.168.1.254"),
+        ipaddress.IPv4Address("192.168.89.22"),
     ]
     test_str_addresses = [
         "192.168.1.65",

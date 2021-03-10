@@ -8,7 +8,8 @@ import json
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir)
+grandparentdir = os.path.dirname(parentdir)
+sys.path.append(grandparentdir)
 
 import scan_mods.protocol_scanners.dns_scanner
 from scan_mods.protocol_scanners.dns_scanner import (
