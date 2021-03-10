@@ -70,7 +70,7 @@ class FoundDevice:
         """
         if isinstance(ports_headers, dict):
             if self._all_ports is None:
-                self._all_ports = {}
+                self._all_ports = {"TCP": {}, "UDP": {}}
                 for key in ports_headers.keys():
                     if key == "TCP" or key == "UDP":
                         if isinstance(ports_headers[key], dict):
@@ -311,12 +311,6 @@ class FoundDevice:
             output[str(self.IP)]["Closed_TCP_Ports_List"] = self.closed_tcp_ports
             output[str(self.IP)]["Closed_UDP_Ports_List"] = self.closed_udp_ports
         return json.dumps(output)
-
-    """
-        TODO:
-        __repr__ is ip and other information like response times
-        __str__ is ip of the device
-    """
 
 
 if __name__ == "__main__":
