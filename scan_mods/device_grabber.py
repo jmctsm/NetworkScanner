@@ -300,7 +300,6 @@ def get_config_napalm(
     port=None,
     usern=None,
     passw=None,
-    full_config=False,
     enable_password=None,
 ):
     """
@@ -313,7 +312,6 @@ def get_config_napalm(
         port (int) :  port connecting to so can pass if not regular SSH
         usern (str) : username to use to connect to the device
         passw (str) : password to use to connect to the device
-        full_config (bool) : True means get the full config for all.  False is just the regular config
         enable_password (str|None) : enable_password will be None if no enable password is needed else it will be a string of the enable password
     """
     for item in [dev_driver, host, usern, passw]:
@@ -321,10 +319,6 @@ def get_config_napalm(
             raise TypeError(f"{item} is not a string.  It is a {type(item).__name__}")
     if not isinstance(port, int):
         raise TypeError(f"{port} is not an int.  It is a {type(port).__name__}")
-    if not isinstance(full_config, bool):
-        raise TypeError(
-            f"{full_config} is not a boolean.  It is a {type(full_config).__name__}"
-        )
     try:
         ipaddress.IPv4Address(host)
     except ipaddress.AddressValueError:
@@ -365,17 +359,27 @@ def get_config_napalm(
         device_environment = device.get_environment()
     return_dict = {}
     return_dict["Device_Facts"] = device_facts
-    return_dict["Device_Startup_Config"] = device_config["startup"]
-    return_dict["Device_Running_Config"] = device_config["running"]
-    return_dict["Device_Candidate_Config"] = device_config["candidate"]
-    return_dict["Device_Startup_Config_Full"] = device_config_full["startup"]
-    return_dict["Device_Running_Config_Full"] = device_config_full["running"]
-    return_dict["Device_Candidate_Config_Full"] = device_config_full["candidate"]
     return_dict["Device_Optics"] = device_optics
     return_dict["Device_Network_Instances"] = device_network_instances
     return_dict["Device_LLDP_Detail"] = device_lldp_detail
     return_dict["Device_LLDP"] = device_lldp
     return_dict["Device_Environment"] = device_environment
+    write_directory = directory_checker(host)
+    config_dict = {
+        "startup": "Device_Startup_Config",
+        "running": "Device_Running_Config",
+        "candidate": "Device_Candidate_Config",
+    }
+    for key, value in config_dict.items():
+        file_location = f"{write_directory}\\{host}_{key}.txt"
+        with open(file_location, "w") as output:
+            output.write(device_config[key])
+        return_dict[f"{value}_File_Location"] = file_location
+    for key, value in config_dict.items():
+        file_location = f"{write_directory}\\{host}_{key}_full.txt"
+        with open(file_location, "w") as output:
+            output.write(device_config_full[key])
+        return_dict[f"{value}_Full_File_Location"] = file_location
     return return_dict
 
 
@@ -472,7 +476,6 @@ def device_grab(
             "Device_Information": {},
         },
     }
-    write_config = False
     if device_type["OS Type"] in [
         "eos",
         "junos",
@@ -494,27 +497,9 @@ def device_grab(
             port=ssh_port,
             usern=ssh_username,
             passw=ssh_password,
-            full_config=False,
             enable_password=ssh_enable_password,
         )
-        write_config = True
         return_dict["CONFIG"]["Device_Information"] = device_information
-
-    if write_config:
-        write_directory = directory_checker(connect_address)
-        config_dict = {
-            "startup_config": "Device_Startup_Config",
-            "running_config": "Device_Running_Config",
-            "candidate_config": "Device_Candidate_Config",
-            "startup_full_config": "Device_Startup_Config_Full",
-            "running_full_config": "Device_Running_Config_Full",
-            "candidate_full_config": "Device_Candidate_Config_Full",
-        }
-        for key, value in config_dict.items():
-            file_location = f"{write_directory}\\{connect_address}_{key}.txt"
-            with open(file_location, "w") as output:
-                for item in return_dict["CONFIG"]["Device_Information"][value]:
-                    output.write(item)
     return return_dict
 
 
