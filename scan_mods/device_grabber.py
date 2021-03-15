@@ -212,9 +212,15 @@ def get_device_type(address, port, username, password, enable_password, header):
             address, port, username, password, look_for_keys=False, allow_agent=False
         )
     except paramiko.AuthenticationException:
-        raise paramiko.AuthenticationException(
-            f"Authentication failed for device {address}"
-        )
+        return_dict = {
+            "Version Info": f"[ERROR] paramiko.AuthenticationException: Authentication failed for device {address}"
+        }
+        return return_dict
+    except TimeoutError:
+        return_dict = {
+            "Version Info": f"[ERROR] TimeoutError: Connection timed out for device {address}"
+        }
+        return return_dict
     if header == "Cisco":
         if enable_password is None:
             stdin_lines, stdout_lines, stderr_lines = ssh_open.exec_command(
@@ -252,6 +258,7 @@ def get_device_type(address, port, username, password, enable_password, header):
             )
 
         return_dict = {"Version Info": output_list}
+        return_dict["OS Type"] = "unknown"
         for line in output_list:
             if "IOS-XE" in line:
                 return_dict["OS Type"] = "ios"
@@ -264,6 +271,9 @@ def get_device_type(address, port, username, password, enable_password, header):
                 break
             elif "Cisco Nexus" in line:
                 return_dict["OS Type"] = "nxos_ssh"
+                break
+            elif "IOSv" in line:
+                return_dict["OS Type"] = "ios"
                 break
         return return_dict
     elif header == "Linux":
@@ -346,8 +356,8 @@ def get_config_napalm(
             optional_args["secret"] = enable_password
     with device_driver(host, usern, passw, optional_args=optional_args) as device:
         device_facts = device.get_facts()
-        device_startup_config = device.get_config()
-        device_startup_config_full = device.get_config(full=True)
+        device_config = device.get_config()
+        device_config_full = device.get_config(full=True)
         device_optics = device.get_optics()
         device_network_instances = device.get_network_instances()
         device_lldp_detail = device.get_lldp_neighbors_detail()
@@ -355,14 +365,12 @@ def get_config_napalm(
         device_environment = device.get_environment()
     return_dict = {}
     return_dict["Device_Facts"] = device_facts
-    return_dict["Device_Startup_Config"] = device_startup_config["startup"]
-    return_dict["Device_Running_Config"] = device_startup_config["running"]
-    return_dict["Device_Candidate_Config"] = device_startup_config["candidate"]
-    # return_dict["Device_Startup_Config_Full"] = device_startup_config_full["startup"]
-    # return_dict["Device_Running_Config_Full"] = device_startup_config_full["running"]
-    return_dict["Device_Candidate_Config_Full"] = device_startup_config_full[
-        "candidate"
-    ]
+    return_dict["Device_Startup_Config"] = device_config["startup"]
+    return_dict["Device_Running_Config"] = device_config["running"]
+    return_dict["Device_Candidate_Config"] = device_config["candidate"]
+    return_dict["Device_Startup_Config_Full"] = device_config_full["startup"]
+    return_dict["Device_Running_Config_Full"] = device_config_full["running"]
+    return_dict["Device_Candidate_Config_Full"] = device_config_full["candidate"]
     return_dict["Device_Optics"] = device_optics
     return_dict["Device_Network_Instances"] = device_network_instances
     return_dict["Device_LLDP_Detail"] = device_lldp_detail
@@ -371,39 +379,23 @@ def get_config_napalm(
     return return_dict
 
 
-def directory_checker(directory_to_check):
+def directory_checker(address):
     """
-    Checks to see if the directory is valid or needs to be created
+    Uses the address of the device to create a directory for storing configs.
+    First sees if the directory exists and then creates it if need be
     Args:
-        directory_to_check (str) : path or directory name to see if it is valid for writing to
-        if directory is None then an output directory will be created
+        address (str) : IP of the device connecting to for which configs will be stored
     Return
         str : directory path that will be written to
     """
-    if directory_to_check is not None:
-        isDir = os.path.isdir(directory_to_check)
-        print(isDir)
-        # exit()
-        if os.path.isdir(directory_to_check):
-            return directory_to_check
-        else:
-            while True:
-                directory_to_check = f"output_{datetime.datetime.now()}"
-                if os.path.isdir(directory_to_check):
-                    time.sleep(0.5)
-                else:
-                    break
-            print(
-                f"The directory given is invalid.  Just going to use {directory_to_check}"
-            )
-    if directory_to_check is None:
-        while True:
-            directory_to_check = f"output_{datetime.datetime.now()}"
-            if os.path.isdir(directory_to_check):
-                time.sleep(0.5)
-            else:
-                break
-    return directory_to_check
+    if address is None:
+        raise ValueError(f"{address} needs to be a string and not None")
+    if not isinstance(address, str):
+        raise ValueError(f"{address} needs to be a string and not None")
+    write_directory = f"{parentdir}\\Output\\Scans\\{address}"
+    if not os.path.exists(write_directory):
+        os.makedirs(write_directory)
+    return write_directory
 
 
 def device_grab(
@@ -467,6 +459,11 @@ def device_grab(
         ssh_enable_password,
         ssh_open,
     )
+    if "[ERROR] " in device_type["Version Info"]:
+        return_dict = {
+            "Version_Info": device_type["Version Info"],
+        }
+        return return_dict
     return_dict = {
         "Version_Info": device_type["Version Info"],
         "CONFIG": {
@@ -475,6 +472,7 @@ def device_grab(
             "Device_Information": {},
         },
     }
+    write_config = False
     if device_type["OS Type"] in [
         "eos",
         "junos",
@@ -499,18 +497,32 @@ def device_grab(
             full_config=False,
             enable_password=ssh_enable_password,
         )
+        write_config = True
         return_dict["CONFIG"]["Device_Information"] = device_information
 
-    write_directory = f"{parentdir}\\Output\\Scans\\{connect_address}"
-
+    if write_config:
+        write_directory = directory_checker(connect_address)
+        config_dict = {
+            "startup_config": "Device_Startup_Config",
+            "running_config": "Device_Running_Config",
+            "candidate_config": "Device_Candidate_Config",
+            "startup_full_config": "Device_Startup_Config_Full",
+            "running_full_config": "Device_Running_Config_Full",
+            "candidate_full_config": "Device_Candidate_Config_Full",
+        }
+        for key, value in config_dict.items():
+            file_location = f"{write_directory}\\{connect_address}_{key}.txt"
+            with open(file_location, "w") as output:
+                for item in return_dict["CONFIG"]["Device_Information"][value]:
+                    output.write(item)
     return return_dict
 
 
 if __name__ == "__main__":
     start_time = time.time()
     linux_testbox = ipaddress.ip_address("192.168.89.80")
-    cisco_testbox = ipaddress.ip_address("192.168.89.22")
-    cisco_testbox_enable = ipaddress.ip_address("192.168.89.122")
+    cisco_testbox = ipaddress.ip_address("192.168.89.254")
+    cisco_testbox_enable = ipaddress.ip_address("192.168.89.253")
     fake_testbox = ipaddress.ip_address("192.168.1.65")
     response_time = (1.1, 1.35, 1.82)
     linux_ports = {
@@ -576,6 +588,6 @@ if __name__ == "__main__":
     )
     json_input_dict[str(cisco_test_device_enable.IP)] = device_grab_info
     print(json_input_dict)
-    json_output = json.dumps(json_input_dict)
+    json_output = json.dumps(json_input_dict, indent=4)
     print("\n\n\n\n")
     print(json_output)
