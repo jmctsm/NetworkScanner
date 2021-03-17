@@ -25,3 +25,6 @@
 # CiscoCSR1000v16.9.5-1
 # Gi1
 192.168.89.247
+
+# Linux Server DNS/WWW
+192.168.89.80
