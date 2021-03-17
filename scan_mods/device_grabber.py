@@ -56,7 +56,7 @@ def check_ports(port_dictionary):
     Args:
         port_dictionary (dict) : dictionary of either one port or multiple ports of format {<port_number>:<header>}
     Return
-        False : if 22 is not in the list
+        False : if 22 or SSH is not in the list
         string : device type or unknown from header information
         int : port number that ssh is running on
     """
@@ -79,7 +79,9 @@ def check_ports(port_dictionary):
                 f"The Port value was not a dict.  It was a type of {type(value).__name__}"
             )
         if key == "22":
-            for value in port_dictionary[key].values():
+            for key, value in port_dictionary[key].items():
+                if key == "ERROR":
+                    continue
                 if "Cisco" in value:
                     return (22, "Cisco")
                 # This can be expanded as more and more are learned
@@ -349,14 +351,55 @@ def get_config_napalm(
                 optional_args = {}
             optional_args["secret"] = enable_password
     with device_driver(host, usern, passw, optional_args=optional_args) as device:
-        device_facts = device.get_facts()
-        device_config = device.get_config()
-        device_config_full = device.get_config(full=True)
-        device_optics = device.get_optics()
-        device_network_instances = device.get_network_instances()
-        device_lldp_detail = device.get_lldp_neighbors_detail()
-        device_lldp = device.get_lldp_neighbors()
-        device_environment = device.get_environment()
+        print("Attempting to get the device configuration...")
+        try:
+            device_facts = device.get_facts()
+        except NotImplementedError:
+            device_facts = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_config = device.get_config()
+        except NotImplementedError:
+            device_config = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_config_full = device.get_config(full=True)
+        except NotImplementedError:
+            device_config_full = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_optics = device.get_optics()
+        except NotImplementedError:
+            device_optics = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_network_instances = device.get_network_instances()
+        except NotImplementedError:
+            device_network_instances = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_lldp_detail = device.get_lldp_neighbors_detail()
+        except NotImplementedError:
+            device_lldp_detail = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_lldp = device.get_lldp_neighbors()
+        except NotImplementedError:
+            device_lldp = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_environment = device.get_environment()
+        except NotImplementedError:
+            device_environment = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_interfaces = device.get_interfaces()
+        except NotImplementedError:
+            device_interfaces = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_interfaces_ip = device.get_interfaces_ip()
+        except NotImplementedError:
+            device_interfaces_ip = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_snmp_info = device.get_snmp_information()
+        except NotImplementedError:
+            device_snmp_info = {"Not_Implemented": "Not_Implemented"}
+        try:
+            device_users = device.get_users()
+        except NotImplementedError:
+            device_users = {"Not_Implemented": "Not_Implemented"}
     return_dict = {}
     return_dict["Device_Facts"] = device_facts
     return_dict["Device_Optics"] = device_optics
@@ -364,6 +407,10 @@ def get_config_napalm(
     return_dict["Device_LLDP_Detail"] = device_lldp_detail
     return_dict["Device_LLDP"] = device_lldp
     return_dict["Device_Environment"] = device_environment
+    return_dict["Device_Interfaces"] = device_interfaces
+    return_dict["Device_Interfaces_IP"] = device_interfaces_ip
+    return_dict["Device_SNMP_Information"] = device_snmp_info
+    return_dict["Device_Users"] = device_users
     write_directory = directory_checker(host)
     config_dict = {
         "startup": "Device_Startup_Config",
@@ -506,8 +553,11 @@ def device_grab(
 if __name__ == "__main__":
     start_time = time.time()
     linux_testbox = ipaddress.ip_address("192.168.89.80")
-    cisco_testbox = ipaddress.ip_address("192.168.89.254")
-    cisco_testbox_enable = ipaddress.ip_address("192.168.89.253")
+    cisco_iosxe_no_en = ipaddress.ip_address("192.168.89.254")
+    cisco_iosv_enable = ipaddress.ip_address("192.168.89.253")
+    cisco_iosl2_no_enable = ipaddress.ip_address("192.168.89.252")
+    cisco_nx0s7 = ipaddress.ip_address("192.168.89.251")
+    cisco_iosxe_enable = ipaddress.ip_address("192.168.89.247")
     fake_testbox = ipaddress.ip_address("192.168.1.65")
     response_time = (1.1, 1.35, 1.82)
     linux_ports = {
@@ -540,19 +590,37 @@ if __name__ == "__main__":
         }
     }
     linux_test_device = FoundDevice(linux_testbox, response_time)
-    cisco_test_device = FoundDevice(cisco_testbox, response_time)
-    fake_test_device = FoundDevice(fake_testbox, response_time)
-    cisco_test_device_enable = FoundDevice(cisco_testbox_enable, response_time)
+    cisco_iosxe_no_en_device = FoundDevice(cisco_iosxe_no_en, response_time)
+    cisco_iosv_enable_device = FoundDevice(cisco_iosv_enable, response_time)
+    cisco_iosl2_no_enable_device = FoundDevice(cisco_iosl2_no_enable, response_time)
+    cisco_nx0s7_device = FoundDevice(cisco_nx0s7, response_time)
+    cisco_iosxe_enable_device = FoundDevice(cisco_iosxe_enable, response_time)
+    fake_testbox_device = FoundDevice(fake_testbox, response_time)
+
     linux_test_device.all_ports = linux_ports
-    cisco_test_device.all_ports = cisco_ports
-    fake_test_device.all_ports = fake_ports
-    cisco_test_device_enable.all_ports = cisco_ports
+    cisco_iosxe_no_en_device.all_ports = cisco_ports
+    cisco_iosv_enable_device.all_ports = cisco_ports
+    cisco_iosl2_no_enable_device.all_ports = cisco_ports
+    cisco_nx0s7_device.all_ports = cisco_ports
+    cisco_iosxe_enable_device.all_ports = cisco_ports
+    fake_testbox_device.all_ports = fake_ports
+
     username = "jmctsm"
     password = "WWTwwt1!"
     enable_password = None
-    device_list = [fake_test_device, linux_test_device, cisco_test_device]
+    no_enable_device_list = [
+        fake_testbox_device,
+        linux_test_device,
+        cisco_iosxe_no_en_device,
+        cisco_iosl2_no_enable_device,
+        cisco_nx0s7_device,
+    ]
+    enable_device_list = [
+        cisco_iosv_enable_device,
+        cisco_iosxe_enable_device,
+    ]
     json_input_dict = {}
-    for device in device_list:
+    for device in no_enable_device_list:
         device_grab_info = device_grab(
             address=device.IP,
             port_dict=device.open_tcp_ports,
@@ -561,18 +629,25 @@ if __name__ == "__main__":
             enable_password_needed=False,
         )
         json_input_dict[str(device.IP)] = device_grab_info
-    json_output = json.dumps(json_input_dict)
+
     enable_password = "WWTwwt1!"
-    device_grab_info = device_grab(
-        address=cisco_test_device_enable.IP,
-        port_dict=cisco_test_device_enable.open_tcp_ports,
-        username=username,
-        password=password,
-        enable_password_needed=True,
-        enable_password=enable_password,
-    )
-    json_input_dict[str(cisco_test_device_enable.IP)] = device_grab_info
+
+    for device in enable_device_list:
+        device_grab_info = device_grab(
+            address=device.IP,
+            port_dict=device.open_tcp_ports,
+            username=username,
+            password=password,
+            enable_password_needed=True,
+            enable_password=enable_password,
+        )
+        json_input_dict[str(device.IP)] = device_grab_info
+
     print(json_input_dict)
     json_output = json.dumps(json_input_dict, indent=4)
     print("\n\n\n\n")
     print(json_output)
+    with open(f"Output\\test_output_{time.time()}.txt", "w") as file_output:
+        file_output.write(json_output)
+    duration = time.time() - start_time
+    print(f"Duration to run was {duration}")
