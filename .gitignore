@@ -17,3 +17,4 @@
 
 # Ignore my testing outputs
 /Output/Scans/*/
+Output/test_output_*.txt
