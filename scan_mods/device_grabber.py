@@ -13,6 +13,12 @@ sys.path.append(parentdir)
 
 from typing import Type
 from scan_mods.device_class import FoundDevice
+from scan_mods.common_validation_checks.check_address import check_address
+from scan_mods.common_validation_checks.check_username import check_username
+from scan_mods.common_validation_checks.check_password import check_password
+from scan_mods.common_validation_checks.check_enable_password import (
+    check_enable_password,
+)
 import ipaddress
 import time
 import getpass
@@ -20,33 +26,6 @@ import napalm
 import paramiko
 import json
 import datetime
-
-
-def check_address(address):
-    """
-    Checks to see if the address is a string or a ipaddress.IPv4Address type
-    Checks to make sure that it is valid
-    If all good, returns an address string
-    If bad, raises exception
-    Args:
-        address (ipaddress.IPv4Address or string) : IPv4 address of ipaddress.IPv4Address type that will be used to connect to
-    return:
-        string : address string
-    """
-    if address is None:
-        raise ValueError(f"No address was given.  Please don't do that again.")
-    if isinstance(address, str):
-        try:
-            ipaddress.IPv4Address(address)
-        except ipaddress.AddressValueError:
-            raise ipaddress.AddressValueError(
-                f"{address} is not set up to be an IPv4 adddress."
-            )
-        else:
-            return address
-    if isinstance(address, ipaddress.IPv4Address):
-        return str(address)
-    raise TypeError(f"{address} is not a viable address type")
 
 
 def check_ports(port_dictionary):
@@ -94,84 +73,6 @@ def check_ports(port_dictionary):
                 return (int(key), "Other")
 
     return (False, False)
-
-
-def check_username(name, address):
-    """
-    This will check to see if a username is given or if one needs to be asked for
-    Args:
-        name (None|str) : this will be None if no username is given or check to make sure a string otherwise.
-        address (str) : string of the address getting username for
-    return:
-        str : username either validated or gotten from a user
-    """
-    while True:
-        if name is None or not isinstance(name, str):
-            name = input(f"Please enter your username for system at IP {address}: ")
-        if name is not None and isinstance(name, str):
-            if len(name) < 255:
-                if len(name) > 0:
-                    return name
-                else:
-                    print(
-                        f"Username was less than 1 character.  Please re-enter the CORRECT username"
-                    )
-            else:
-                print(
-                    f"Username was greater than 255 characters.  Why the heck did you do that?"
-                )
-            name = None
-
-
-def check_password(password, address):
-    """
-    This will check to see if a password is given or if one needs to be asked for
-    Args:
-        password (None|str) : this will be None if no password is given or check to make sure a string otherwise.
-        address (str) : string of the address getting password for
-    return:
-        str : password either validated or gotten from a user
-    """
-    while True:
-        if password is None or not isinstance(password, str):
-            password = getpass.getpass(
-                f"Please enter your password for system at IP {address}: "
-            )
-        if password is not None and isinstance(password, str):
-            if len(password) > 0:
-                return password
-            else:
-                print(
-                    f"Password was less than 1 character.  Please re-enter the CORRECT password"
-                )
-            password = None
-
-
-def check_enable_password(password, address):
-    """
-    Function will check to see if an enable password is given at runtime.  If not, it will ask the user if one is needed for the device
-    If the user says one is needed it will attempt to get one from the user
-    Args:
-        password (None|str) : this will be None if no password is given or check to make sure a string otherwise.
-        address (str) : string of the address getting password for
-    return:
-        str : password either validated or gotten from a user
-
-    """
-    while True:
-        if password is None or not isinstance(password, str):
-            password = getpass.getpass(
-                f"You have indicated that an enable password is required.  \n"
-                f"Please enter your enable password for system at IP {address}: "
-            )
-        if password is not None and isinstance(password, str):
-            if len(password) > 0:
-                return password
-            else:
-                print(
-                    f"Password was less than 1 character.  Please re-enter the CORRECT password"
-                )
-            password = None
 
 
 def get_device_type(address, port, username, password, enable_password, header):
