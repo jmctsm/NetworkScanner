@@ -21,3 +21,7 @@ print everything out to a JSON file for reading later
 exclude flag for IPs to not scan
 
 stig option to parse for stig information
+
+Finish writing tests for device_grabber
+
+write python files and tests for all types in textfsm folder
