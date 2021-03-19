@@ -253,65 +253,27 @@ def get_config_napalm(
             optional_args["secret"] = enable_password
     with device_driver(host, usern, passw, optional_args=optional_args) as device:
         print("Attempting to get the device configuration...")
-        try:
-            device_facts = device.get_facts()
-        except NotImplementedError:
-            device_facts = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_config = device.get_config()
-        except NotImplementedError:
-            device_config = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_config_full = device.get_config(full=True)
-        except NotImplementedError:
-            device_config_full = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_optics = device.get_optics()
-        except NotImplementedError:
-            device_optics = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_network_instances = device.get_network_instances()
-        except NotImplementedError:
-            device_network_instances = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_lldp_detail = device.get_lldp_neighbors_detail()
-        except NotImplementedError:
-            device_lldp_detail = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_lldp = device.get_lldp_neighbors()
-        except NotImplementedError:
-            device_lldp = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_environment = device.get_environment()
-        except NotImplementedError:
-            device_environment = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_interfaces = device.get_interfaces()
-        except NotImplementedError:
-            device_interfaces = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_interfaces_ip = device.get_interfaces_ip()
-        except NotImplementedError:
-            device_interfaces_ip = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_snmp_info = device.get_snmp_information()
-        except NotImplementedError:
-            device_snmp_info = {"Not_Implemented": "Not_Implemented"}
-        try:
-            device_users = device.get_users()
-        except NotImplementedError:
-            device_users = {"Not_Implemented": "Not_Implemented"}
-    return_dict = {}
-    return_dict["Device_Facts"] = device_facts
-    return_dict["Device_Optics"] = device_optics
-    return_dict["Device_Network_Instances"] = device_network_instances
-    return_dict["Device_LLDP_Detail"] = device_lldp_detail
-    return_dict["Device_LLDP"] = device_lldp
-    return_dict["Device_Environment"] = device_environment
-    return_dict["Device_Interfaces"] = device_interfaces
-    return_dict["Device_Interfaces_IP"] = device_interfaces_ip
-    return_dict["Device_SNMP_Information"] = device_snmp_info
-    return_dict["Device_Users"] = device_users
+        return_dict = {}
+        inputs_dict = {
+            "Device_Facts": device.get_facts,
+            "Device_Optics": device.get_optics,
+            "Device_Network_Instances": device.get_network_instances,
+            "Device_LLDP_Detail": device.get_lldp_neighbors_detail,
+            "Device_LLDP": device.get_lldp_neighbors,
+            "Device_Environment": device.get_environment,
+            "Device_Interfaces": device.get_interfaces,
+            "Device_Interfaces_IP": device.get_interfaces_ip,
+            "Device_SNMP_Information": device.get_snmp_information,
+            "Device_Users": device.get_users,
+        }
+        for key, value in inputs_dict.items():
+            try:
+                return_dict[key] = value()
+            except NotImplementedError:
+                return_dict[key] = {"Not_Implemented": "Not_Implemented"}
+
+        device_config = device.get_config()
+        device_config_full = device.get_config(full=True)
     write_directory = directory_checker(host)
     config_dict = {
         "startup": "Device_Startup_Config",
