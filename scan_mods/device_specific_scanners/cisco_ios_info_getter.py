@@ -7,6 +7,7 @@ It will use netmiko and NTC-Templates to return all information via JSON
 
 import os
 import sys
+from typing import Type
 
 currentdir = os.path.dirname(os.path.realpath(__file__))
 parentdir = os.path.dirname(currentdir)
@@ -16,7 +17,8 @@ sys.path.append(grandparentdir)
 
 os.environ[
     "NTC_TEMPLATES_DIR"
-] = f"{grandparentdir}NTC_Templates/ntc_templates/templates/"
+] = f"{grandparentdir}\\NTC_Templates\\ntc-templates\\ntc_templates\\templates\\"
+
 
 from scan_mods.common_validation_checks.check_address import check_address
 from scan_mods.common_validation_checks.check_username import check_username
@@ -24,11 +26,11 @@ from scan_mods.common_validation_checks.check_password import check_password
 from scan_mods.common_validation_checks.check_enable_password import (
     check_enable_password,
 )
-from scan_mods.device_class import FoundDevice
+
 import time
-import ipaddress
 import json
 import netmiko
+import textfsm
 
 
 def cisco_ios_info_getter(
@@ -79,9 +81,32 @@ def cisco_ios_info_getter(
             "password": valid_password,
             "port": connect_port,
         }
-
-    device_connection = netmiko.ConnectHandler(**device_parameters)
-    command_list = find_commands(device_parameters["device_type"])
+    try:
+        device_connection = netmiko.ConnectHandler(**device_parameters)
+    except Exception as ex:
+        print(ex)
+    command_dict = find_commands(device_parameters["device_type"])
+    output_dict = {}
+    for command_key, command_value in command_dict.items():
+        try:
+            output_string = device_connection.send_command(
+                command_value, use_textfsm=True
+            )
+        except textfsm.parser.TextFSMError:
+            output_string = "% Invalid input detected "
+        except OSError:
+            output_string = "% Invalid input detected "
+        except Exception as ex:
+            print(ex)
+            output_string = "% Invalid input detected "
+            raise
+        if (
+            "% Invalid input detected " in output_string
+            or "% Incomplete command" in output_string
+        ):
+            continue
+        output_dict[command_key] = output_string
+    print(json.dumps(output_dict))
     exit()
 
 
@@ -92,9 +117,21 @@ def find_commands(device_type):
         device_type (str) : string of the device_type to look for in the NTC templates
 
     Return:
-        list : list of commands for the device type
+        dict : dict of commands for the device type where key is the command name with underscores and value is the command
     """
-    pass
+    if not isinstance(device_type, str):
+        raise TypeError(
+            f"Device Type should be a string.  Not {type(device_type).__name__}"
+        )
+    commands_found = {}
+    for template_name in os.listdir(
+        f"{grandparentdir}\\NTC_Templates\\ntc-templates\\ntc_templates\\templates\\"
+    ):
+        if device_type in template_name:
+            command_name = template_name[len(device_type) + 1 : -8]
+            command_value = " ".join(command_name.split("_"))
+            commands_found[command_name] = command_value
+    return commands_found
 
 
 if __name__ == "__main__":
