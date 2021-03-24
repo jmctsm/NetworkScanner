@@ -78,6 +78,17 @@ def device_info_getter(
     """
     Will connect to a device using netmiko and pull information from the device
     and format it using TEXTFSM settings into JSON for output later
+    Args:
+        address (str) : address of the device to get info from
+        username (str) : username of the device
+        password (str) : password of the device
+        device_type (str) : device type of the device in either napalm format or netmiko
+        enable_password_needed (bool) : boolean on if the enable password is needed or not
+        enable_password (str) : string of the enable password
+        port_to_use (int) : if the default ssh port is different
+
+    REturns:
+
     """
     if address is None:
         raise ValueError(f"You did not tell me what to connect to Fix This")
@@ -161,6 +172,7 @@ def device_info_getter(
         ):
             continue
         output_dict[command_key] = output_string
+    device_connection.disconnect()
     return output_dict
 
 
