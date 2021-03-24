@@ -19,6 +19,7 @@ from scan_mods.common_validation_checks.check_password import check_password
 from scan_mods.common_validation_checks.check_enable_password import (
     check_enable_password,
 )
+import scan_mods.device_specific_info_getter
 import ipaddress
 import time
 import getpass
@@ -178,6 +179,7 @@ def get_device_type(address, port, username, password, enable_password, header):
             elif "IOSv" in line:
                 return_dict["OS Type"] = "ios"
                 break
+        ssh_open.close()
         return return_dict
     elif header == "Linux":
         stdin_lines, stdout_lines, stderr_lines = ssh_open.exec_command("uname -a")
@@ -185,15 +187,18 @@ def get_device_type(address, port, username, password, enable_password, header):
             raise ValueError(f"Something happened when connecting to {address}")
         stdout_list = stdout_lines.readlines()
         return_dict = {"Version Info": [stdout_list[0].strip()]}
-        if "Ubuntu" in return_dict["Version Info"]:
-            return_dict["OS Type"] = "Ubuntu"
-        else:
-            return_dict["OS Type"] = "Linux"
+        return_dict["OS Type"] = "linux"
+        ssh_open.close()
         return return_dict
     elif header == "Other":
         stdin_lines, stdout_lines, stderr_lines = ssh_open.exec_command("show version")
-        # print(stdout_lines.readlines())
-        # print(stderr_lines.readlines())
+        if stderr_lines.readlines():
+            raise ValueError(f"Something happened when connecting to {address}")
+        stdout_list = stdout_lines.readlines()
+        return_dict = {"Version Info": [stdout_list[0].strip()]}
+        return_dict["OS Type"] = "unknown"
+        ssh_open.close()
+        return return_dict
     ssh_open.close()
 
 
@@ -339,7 +344,7 @@ def device_grab(
     """
     connect_address = check_address(address)
     ssh_port, ssh_open = check_ports(port_dict)
-    return_dict = {}
+    # return_dict = {}
     return_dict = {
         "Version_Info": ["No Version information was available"],
         "CONFIG": {
@@ -349,11 +354,13 @@ def device_grab(
         },
     }
     if ssh_port is False and ssh_open is False:
+        """
         return_dict["CONFIG"] = {
             "Open_Close": False,
             "Open_Close_Msg": "SSH is not open on the device for ports scanned",
             "Device_Information": {},
         }
+        """
         return return_dict
     ssh_username = check_username(username, connect_address)
     ssh_password = check_password(password, connect_address)
@@ -410,6 +417,17 @@ def device_grab(
             enable_password=ssh_enable_password,
         )
         return_dict["CONFIG"]["Device_Information"] = device_information
+    return_dict["CONFIG"][
+        "Show_Info"
+    ] = scan_mods.device_specific_info_getter.device_info_getter(
+        address=connect_address,
+        username=ssh_username,
+        password=ssh_password,
+        device_type=device_type["OS Type"],
+        enable_password_needed=enable_password_needed,
+        enable_password=enable_password,
+        port_to_use=ssh_port,
+    )
     return return_dict
 
 
@@ -421,7 +439,7 @@ if __name__ == "__main__":
     cisco_iosl2_no_enable = ipaddress.ip_address("192.168.89.252")
     cisco_nx0s7 = ipaddress.ip_address("192.168.89.251")
     cisco_iosxe_enable = ipaddress.ip_address("192.168.89.247")
-    fake_testbox = ipaddress.ip_address("192.168.1.65")
+    fake_testbox = ipaddress.ip_address("192.168.0.1")
     response_time = (1.1, 1.35, 1.82)
     linux_ports = {
         "TCP": {
@@ -469,7 +487,7 @@ if __name__ == "__main__":
     fake_testbox_device.all_ports = fake_ports
 
     username = "jmctsm"
-    password = "WWTwwt1!"
+    password = "ciscocisco"
     enable_password = None
     no_enable_device_list = [
         fake_testbox_device,
@@ -493,7 +511,7 @@ if __name__ == "__main__":
         )
         json_input_dict[str(device.IP)] = device_grab_info
 
-    enable_password = "WWTwwt1!"
+    enable_password = "ciscocisco"
 
     for device in enable_device_list:
         device_grab_info = device_grab(

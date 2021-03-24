@@ -88,6 +88,7 @@ def device_info_getter(
         port_to_use (int) : if the default ssh port is different
 
     REturns:
+        dict : dict of all info pulled from the device in JSON format
 
     """
     if address is None:
