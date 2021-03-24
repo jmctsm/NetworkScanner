@@ -14,3 +14,7 @@
 #ignore my vscode json file
 .vscode/*.json
 .vscode/
+
+# Ignore my testing outputs
+/Output/Scans/*/
+Output/test_output_*.txt

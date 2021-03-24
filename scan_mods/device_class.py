@@ -9,6 +9,7 @@ import os
 import re
 import time
 import json
+import scan_mods.device_grabber
 
 
 class FoundDevice:
@@ -70,7 +71,7 @@ class FoundDevice:
         """
         if isinstance(ports_headers, dict):
             if self._all_ports is None:
-                self._all_ports = {}
+                self._all_ports = {"TCP": {}, "UDP": {}}
                 for key in ports_headers.keys():
                     if key == "TCP" or key == "UDP":
                         if isinstance(ports_headers[key], dict):
@@ -160,6 +161,22 @@ class FoundDevice:
             raise AssertionError(
                 f"The length of the ports categorized does not equal the length of the number of ports for UDP"
             )
+
+    def device_info_grabber(self):
+        """
+        This will use the scan_mods.device_grabber to get the information from each device and return it in a JSON format
+        """
+        """
+        I need to finish this
+        self.device_info_json = scan_mods.device_grabber.device_grab_info(
+            address=self.IP,
+            port_dict=self.open_tcp_ports,
+            username=None,
+            password=None,
+            enable_password_needed=False,
+            enable_password=None,
+        )
+        """
 
     @property
     def open_tcp_ports(self):
@@ -311,12 +328,6 @@ class FoundDevice:
             output[str(self.IP)]["Closed_TCP_Ports_List"] = self.closed_tcp_ports
             output[str(self.IP)]["Closed_UDP_Ports_List"] = self.closed_udp_ports
         return json.dumps(output)
-
-    """
-        TODO:
-        __repr__ is ip and other information like response times
-        __str__ is ip of the device
-    """
 
 
 if __name__ == "__main__":
