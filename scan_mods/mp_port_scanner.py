@@ -341,11 +341,13 @@ if __name__ == "__main__":
     start_time = time.time()
     # calling function for example
     address_list = [
-        ipaddress.ip_address("192.168.1.65"),
-        ipaddress.ip_address("10.0.1.254"),
         ipaddress.ip_address("192.168.89.80"),
-        ipaddress.ip_address("192.168.1.254"),
-        ipaddress.ip_address("192.168.89.22"),
+        ipaddress.ip_address("192.168.89.254"),
+        ipaddress.ip_address("192.168.89.253"),
+        ipaddress.ip_address("192.168.89.252"),
+        ipaddress.ip_address("192.168.89.251"),
+        ipaddress.ip_address("192.168.89.247"),
+        ipaddress.ip_address("192.168.0.1"),
     ]
     test_domain_names = [
         "test.local",
@@ -361,7 +363,9 @@ if __name__ == "__main__":
                 address, test_domain_name
             )
     print(dict_of_ports)
-    print("\n\n\n\n")
-    print(json.dumps(dict_of_ports))
+    with open(
+        f"Output\\test_output_mp_port_scanner_{time.time()}.txt", "w"
+    ) as file_output:
+        file_output.write(json.dumps(dict_of_ports))
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")
