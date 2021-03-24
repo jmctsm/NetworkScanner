@@ -9,6 +9,7 @@ import os
 import re
 import time
 import json
+import scan_mods.device_grabber
 
 
 class FoundDevice:
@@ -160,6 +161,22 @@ class FoundDevice:
             raise AssertionError(
                 f"The length of the ports categorized does not equal the length of the number of ports for UDP"
             )
+
+    def device_info_grabber(self):
+        """
+        This will use the scan_mods.device_grabber to get the information from each device and return it in a JSON format
+        """
+        """
+        I need to finish this
+        self.device_info_json = scan_mods.device_grabber.device_grab_info(
+            address=self.IP,
+            port_dict=self.open_tcp_ports,
+            username=None,
+            password=None,
+            enable_password_needed=False,
+            enable_password=None,
+        )
+        """
 
     @property
     def open_tcp_ports(self):
