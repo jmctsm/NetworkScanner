@@ -33,10 +33,44 @@ import netmiko
 import textfsm
 
 
-def cisco_ios_info_getter(
+def check_device_type(device_type, address):
+    """
+    Validate that the device type will return the correct string for NetMiko
+    Args:
+        device_type (str) : string of device types
+        address (str): string of the IP address
+    return:
+        str : string of the device type to use with NetMiko
+    """
+    if device_type is None:
+        raise ValueError(
+            f"You did not enter a device type to search for at address {address}.  Try again"
+        )
+    if device_type is not None:
+        if isinstance(device_type, str):
+            if device_type == "ios":
+                return ("cisco_ios", "cisco_ios")
+            elif device_type == "nxos_ssh":
+                return ("cisco_nxos_ssh", "cisco_nxos")
+            elif device_type == "iosxr":
+                return ("cisco_xr", "cisco_xr")
+            elif device_type == "linux":
+                return ("linux_ssh", "linux")
+            else:
+                raise ValueError(
+                    f"Device Type of {device_type} is not known.  Try again."
+                )
+        else:
+            raise TypeError(
+                f"You did not enter a string for the device type at address {address}.  Try again"
+            )
+
+
+def device_info_getter(
     address=None,
     username=None,
     password=None,
+    device_type=None,
     enable_password_needed=False,
     enable_password=None,
     port_to_use=22,
@@ -50,6 +84,9 @@ def cisco_ios_info_getter(
     valid_address = check_address(address)
     valid_username = check_username(username, valid_address)
     valid_password = check_password(password, valid_address)
+    valid_device_type, valid_textfsm_string = check_device_type(
+        device_type, valid_address
+    )
     if enable_password_needed:
         valid_enable_password = check_enable_password(enable_password, valid_address)
     if port_to_use != 22:
@@ -66,7 +103,7 @@ def cisco_ios_info_getter(
         connect_port = 22
     if enable_password_needed:
         device_parameters = {
-            "device_type": "cisco_ios",
+            "device_type": valid_device_type,
             "host": valid_address,
             "username": valid_username,
             "password": valid_password,
@@ -75,18 +112,34 @@ def cisco_ios_info_getter(
         }
     else:
         device_parameters = {
-            "device_type": "cisco_ios",
+            "device_type": valid_device_type,
             "host": valid_address,
             "username": valid_username,
             "password": valid_password,
             "port": connect_port,
         }
+
+    output_dict = {}
+    print(
+        f"Attempting connection to {valid_address} to get device specific information"
+    )
     try:
         device_connection = netmiko.ConnectHandler(**device_parameters)
+    except netmiko.ssh_exception.NetmikoTimeoutException:
+        output_dict["ERROR"] = {
+            "NetmikoTimeoutException": f"Device Connection Timed Out for {valid_address}"
+        }
+        return output_dict
+    except netmiko.ssh_exception.NetmikoAuthenticationException:
+        output_dict["ERROR"] = {
+            "NetmikoAuthenticationException": f"Authentication failed for {valid_address}"
+        }
+        return output_dict
     except Exception as ex:
         print(ex)
-    command_dict = find_commands(device_parameters["device_type"])
-    output_dict = {}
+        raise
+    command_dict = find_commands(valid_textfsm_string)
+    print(f"Sending commands to {valid_address} for device specific information")
     for command_key, command_value in command_dict.items():
         try:
             output_string = device_connection.send_command(
@@ -96,6 +149,8 @@ def cisco_ios_info_getter(
             output_string = "% Invalid input detected "
         except OSError:
             output_string = "% Invalid input detected "
+        except netmiko.ssh_exception.NetmikoTimeoutException:
+            output_string = "Timed-out reading channel, data not available."
         except Exception as ex:
             print(ex)
             output_string = "% Invalid input detected "
@@ -106,8 +161,7 @@ def cisco_ios_info_getter(
         ):
             continue
         output_dict[command_key] = output_string
-    print(json.dumps(output_dict))
-    exit()
+    return output_dict
 
 
 def find_commands(device_type):
@@ -124,8 +178,9 @@ def find_commands(device_type):
             f"Device Type should be a string.  Not {type(device_type).__name__}"
         )
     commands_found = {}
+    print(f"Grabbing all commands for device type {device_type}")
     for template_name in os.listdir(
-        f"{grandparentdir}\\NTC_Templates\\ntc-templates\\ntc_templates\\templates\\"
+        f"{parentdir}\\NTC_Templates\\ntc-templates\\ntc_templates\\templates\\"
     ):
         if device_type in template_name:
             command_name = template_name[len(device_type) + 1 : -8]
@@ -136,17 +191,21 @@ def find_commands(device_type):
 
 if __name__ == "__main__":
     start_time = time.time()
-    cisco_iosxe_no_en = "192.168.89.254"
-    cisco_iosv_enable = "192.168.89.253"
-    cisco_iosl2_no_enable = "192.168.89.252"
-    cisco_iosxe_enable = "192.168.89.247"
+    cisco_iosxe_no_en = {"192.168.89.254": "ios"}
+    cisco_iosv_enable = {"192.168.89.253": "ios"}
+    cisco_iosl2_no_enable = {"192.168.89.252": "ios"}
+    cisco_iosxe_enable = {"192.168.89.247": "ios"}
+    cisco_nx0s7 = {"192.168.89.251": "nxos_ssh"}
+    linux_ubuntu_server = {"192.168.89.80": "linux"}
 
     username = "jmctsm"
-    password = "WWTwwt1!"
+    password = "ciscocisco"
     enable_password = None
     no_enable_device_list = [
         cisco_iosxe_no_en,
         cisco_iosl2_no_enable,
+        cisco_nx0s7,
+        linux_ubuntu_server,
     ]
     enable_device_list = [
         cisco_iosv_enable,
@@ -154,25 +213,29 @@ if __name__ == "__main__":
     ]
     json_input_dict = {}
     for device in no_enable_device_list:
-        cisco_ios_info = cisco_ios_info_getter(
-            address=device,
-            username=username,
-            password=password,
-            enable_password_needed=False,
-        )
-        json_input_dict[device] = cisco_ios_info
+        for device_ip, device_type in device.items():
+            device_info = device_info_getter(
+                address=device_ip,
+                username=username,
+                password=password,
+                device_type=device_type,
+                enable_password_needed=False,
+            )
+            json_input_dict[device_ip] = device_info
 
-    enable_password = "WWTwwt1!"
+    enable_password = "ciscocisco"
 
     for device in enable_device_list:
-        cisco_ios_info = cisco_ios_info_getter(
-            address=device,
-            username=username,
-            password=password,
-            enable_password_needed=True,
-            enable_password=enable_password,
-        )
-        json_input_dict[str(device)] = cisco_ios_info
+        for device_ip, device_type in device.items():
+            device_info = device_info_getter(
+                address=device_ip,
+                username=username,
+                password=password,
+                device_type=device_type,
+                enable_password_needed=True,
+                enable_password=enable_password,
+            )
+            json_input_dict[device_ip] = device_info
 
     print(json_input_dict)
     json_output = json.dumps(json_input_dict, indent=4)
