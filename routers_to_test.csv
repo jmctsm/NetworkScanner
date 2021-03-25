@@ -1,0 +1,18 @@
+# subnet_or_IP,username,password,domain_name,enable_use,enable_password
+# Linux Server DNS/WWW
+192.168.89.80,jmctsm,ciscocisco,test.local,False,False
+# CiscoCSR1000v16.9.5-1_No_Enable
+# Gi1
+192.168.89.254,jmctsm,ciscocisco,test.local,False,False
+# CiscoIOSv15.6(1)
+# Gi0/0
+192.168.89.253,jmctsm,ciscocisco,test.local,True,ciscocisco
+# CiscoIOSvL215
+# Gi0/0
+192.168.89.252,jmctsm,ciscocisco,test.local,False,False
+# CiscoNX-OSv7.3.0-1
+# Mgmt
+192.168.89.251,jmctsm,ciscocisco,test.local,False,False
+# CiscoCSR1000v16.9.5-1
+# Gi1
+192.168.89.247,jmctsm,ciscocisco,test.local,True,ciscocisco
