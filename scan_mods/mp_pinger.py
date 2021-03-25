@@ -60,7 +60,7 @@ def pinger(addresses):
             response time of each one
     """
     # raise an error is an empty list is passed to the function
-    if len(addresses) == 0:
+    if len(addresses) <= 0:
         raise ValueError(
             "Looks like the network didn't work for getting IPs.  Bye Bye!!"
         )
