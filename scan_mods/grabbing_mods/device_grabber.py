@@ -12,14 +12,13 @@ parentdir = os.path.dirname(currentdir)
 sys.path.append(parentdir)
 
 from typing import Type
-from scan_mods.device_class import FoundDevice
 from scan_mods.common_validation_checks.check_address import check_address
 from scan_mods.common_validation_checks.check_username import check_username
 from scan_mods.common_validation_checks.check_password import check_password
 from scan_mods.common_validation_checks.check_enable_password import (
     check_enable_password,
 )
-import scan_mods.device_specific_info_getter
+import scan_mods.grabbing_mods.device_specific_info_getter
 import ipaddress
 import time
 import getpass
@@ -419,7 +418,7 @@ def device_grab(
         return_dict["CONFIG"]["Device_Information"] = device_information
     return_dict["CONFIG"][
         "Show_Info"
-    ] = scan_mods.device_specific_info_getter.device_info_getter(
+    ] = scan_mods.grabbing_mods.device_specific_info_getter.device_info_getter(
         address=connect_address,
         username=ssh_username,
         password=ssh_password,
@@ -432,6 +431,9 @@ def device_grab(
 
 
 if __name__ == "__main__":
+
+    from scan_mods.device_class import FoundDevice
+
     start_time = time.time()
     linux_testbox = ipaddress.ip_address("192.168.89.80")
     cisco_iosxe_no_en = ipaddress.ip_address("192.168.89.254")

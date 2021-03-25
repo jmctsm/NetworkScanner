@@ -9,7 +9,9 @@ import os
 import re
 import time
 import json
-import scan_mods.device_grabber
+import sys
+
+import scan_mods.grabbing_mods.device_grabber
 
 
 class FoundDevice:
@@ -177,6 +179,7 @@ class FoundDevice:
             enable_password=None,
         )
         """
+        pass
 
     @property
     def open_tcp_ports(self):
