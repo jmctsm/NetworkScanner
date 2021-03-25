@@ -107,29 +107,27 @@ def main():
     """
     This function will be the main function of the program.  It will call all other pieces of the application
     """
+    print("Starting the program.  Let the magic fly")
+
     args = parse_my_args()
 
     list_of_addresses = ()
 
     if hasattr(args, "address") and args.address is not None:
         list_of_addresses = get_who_to_scan(args.address)
-        testing_addresses = create_scan_dictionary(
+        address_dict, testing_addresses = create_scan_dictionary(
             args, list_of_addresses, args.address[0]
         )
     elif hasattr(args, "subnet") and args.subnet is not None:
         list_of_addresses = get_who_to_scan(args.subnet)
-        testing_addresses = create_scan_dictionary(
+        address_dict, testing_addresses = create_scan_dictionary(
             args, list_of_addresses, args.subnet[0]
         )
     elif hasattr(args, "csv") and args.csv is not None:
-        testing_addresses = parse_csv_file(args.csv[0])
-
-    print("Starting the program.  Let the magic fly")
-
+        address_dict, testing_addresses = parse_csv_file(args.csv[0])
     # call the pinger program
     print("Pinging the hosts to see who is up")
-    hosts_that_are_up = pinger()
-
+    hosts_that_are_up = pinger(testing_addresses)
     # create a class instance of each device that is up
     print("We now know who is up.  Working on keeping that data")
     device_list = []
@@ -194,6 +192,7 @@ def create_scan_dictionary(script_args, address_list, address_space):
         address_list (list) : list of the IP addresses to scan
         address_space (str) : string of the address(es) user put in to scan
     return:
+        list : list of addressesto test
         dict : dictionary of following format
             return_dict[address] = {"username":username,"password":password,"use_enable":use_enable,"enable_password":enable_password,"domain_name":domain_name,}
     """
@@ -256,7 +255,7 @@ def create_scan_dictionary(script_args, address_list, address_space):
             "enable_password": enable_password,
             "domain_name": domain_name,
         }
-    return return_dict
+    return (return_dict, address_list)
 
 
 def parse_csv_file(csv_file_location):
@@ -265,6 +264,7 @@ def parse_csv_file(csv_file_location):
     Args:
         csv_file_location (string) : string of the path of the csv file
     return:
+        list : list of addresses to test for pinger
         dict : dictionary of following format
             return_dict[address] = {"username":username,"password":password,"use_enable":use_enable,"enable_password":enable_password,"domain_name":domain_name,}
 
@@ -272,6 +272,7 @@ def parse_csv_file(csv_file_location):
     import csv
 
     return_dict = {}
+    return_address_list = []
     with open(csv_file_location) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         for row in csv_reader:
@@ -318,6 +319,7 @@ def parse_csv_file(csv_file_location):
                 if len(address_list_parsed) == 0:
                     raise ValueError("No usable address in the CSV file.  Start over.")
                 for add_item in address_list_parsed:
+                    return_address_list.append(add_item)
                     return_dict[add_item] = {
                         "username": usable_username,
                         "password": usable_password,
@@ -325,7 +327,7 @@ def parse_csv_file(csv_file_location):
                         "enable_password": useable_enable_password,
                         "domain_name": usable_domain_name,
                     }
-    return return_dict
+    return (return_dict, return_address_list)
 
 
 if __name__ == "__main__":
