@@ -9,16 +9,7 @@ import os
 import sys
 from typing import Type
 
-currentdir = os.path.dirname(os.path.realpath(__file__))
-parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir)
-grandparentdir = os.path.dirname(parentdir)
-sys.path.append(grandparentdir)
-
-os.environ[
-    "NTC_TEMPLATES_DIR"
-] = f"{grandparentdir}\\NTC_Templates\\ntc-templates\\ntc_templates\\templates\\"
-
+sys.path.append("../../")
 
 from scan_mods.common_validation_checks.check_address import check_address
 from scan_mods.common_validation_checks.check_username import check_username
@@ -192,9 +183,21 @@ def find_commands(device_type):
         )
     commands_found = {}
     print(f"Grabbing all commands for device type {device_type}")
-    for template_name in os.listdir(
-        f"{parentdir}\\NTC_Templates\\ntc-templates\\ntc_templates\\templates\\"
-    ):
+    ntc_template_path = None
+    if "NTC_Templates" in os.listdir(os.getcwd()):
+        ntc_template_path = (
+            f"{os.getcwd()}/NTC_Templates/ntc-templates/ntc_templates/templates/"
+        )
+    else:
+        path = "../"
+        while ntc_template_path is None:
+            if "NTC_Templates" in os.listdir(path):
+                ntc_template_path = (
+                    f"{path}/NTC_Templates/ntc-templates/ntc_templates/templates/"
+                )
+            path += "../"
+    os.environ["NTC_TEMPLATES_DIR"] = ntc_template_path
+    for template_name in os.listdir(ntc_template_path):
         if device_type in template_name:
             command_name = template_name[len(device_type) + 1 : -8]
             command_value = " ".join(command_name.split("_"))
@@ -254,7 +257,7 @@ if __name__ == "__main__":
     json_output = json.dumps(json_input_dict, indent=4)
     print("\n\n\n\n")
     print(json_output)
-    with open(f"Output\\test_output_{time.time()}.txt", "w") as file_output:
+    with open(f"../../Output/test_output_{time.time()}.txt", "w") as file_output:
         file_output.write(json_output)
     duration = time.time() - start_time
     print(f"Duration to run was {duration}")

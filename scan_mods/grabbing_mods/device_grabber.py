@@ -7,9 +7,7 @@ This will connect to a device that is Cisco and attempt to get the config from t
 import os
 import sys
 
-currentdir = os.path.dirname(os.path.realpath(__file__))
-parentdir = os.path.dirname(currentdir)
-sys.path.append(parentdir)
+sys.path.append("../../")
 
 from typing import Type
 from scan_mods.common_validation_checks.check_address import check_address
@@ -18,7 +16,7 @@ from scan_mods.common_validation_checks.check_password import check_password
 from scan_mods.common_validation_checks.check_enable_password import (
     check_enable_password,
 )
-import scan_mods.grabbing_mods.device_specific_info_getter
+from scan_mods.grabbing_mods.device_specific_info_getter import device_info_getter
 import ipaddress
 import time
 import getpass
@@ -124,6 +122,12 @@ def get_device_type(address, port, username, password, enable_password, header):
             "Version Info": f"[ERROR] TimeoutError: Connection timed out for device {address}"
         }
         return return_dict
+
+    except paramiko.ssh_exception.NoValidConnectionsError:
+        return_dict = {
+            "Version Info": f"[ERROR] paramiko.ssh_exception.NoValidConnectionsError: Unable to connect to port 22 on {address}"
+        }
+        return return_dict
     if header == "Cisco":
         if enable_password is None:
             stdin_lines, stdout_lines, stderr_lines = ssh_open.exec_command(
@@ -190,12 +194,70 @@ def get_device_type(address, port, username, password, enable_password, header):
         ssh_open.close()
         return return_dict
     elif header == "Other":
-        stdin_lines, stdout_lines, stderr_lines = ssh_open.exec_command("show version")
-        if stderr_lines.readlines():
-            raise ValueError(f"Something happened when connecting to {address}")
-        stdout_list = stdout_lines.readlines()
-        return_dict = {"Version Info": [stdout_list[0].strip()]}
+        if enable_password is None:
+            stdin_lines, stdout_lines, stderr_lines = ssh_open.exec_command(
+                "show version"
+            )
+            if stderr_lines.readlines():
+                raise ValueError(f"Something happened when connecting to {address}")
+            output_list = []
+            for line in stdout_lines.readlines():
+                if line.strip() == "":
+                    continue
+                output_list.append(line.strip())
+            if "not found" in output_list:
+                # Potentially a Linux box then
+                stdin_lines, stdout_lines, stderr_lines = ssh_open.exec_command(
+                    "uname -a"
+                )
+                if stderr_lines.readlines():
+                    raise ValueError(f"Something happened when connecting to {address}")
+                stdout_list = stdout_lines.readlines()
+                return_dict = {"Version Info": [stdout_list[0].strip()]}
+                return_dict["OS Type"] = "linux"
+                ssh_open.close()
+                return return_dict
+        elif enable_password is not None:
+            # this means we have to invoke a shell and start issuing commands :)
+            shell_connection = ssh_open.invoke_shell()
+            shell_connection.send("enable\n")
+            time.sleep(0.5)
+            shell_connection.send(f"{enable_password}\n")
+            time.sleep(0.5)
+            shell_connection.send("term length 0\n")
+            time.sleep(0.5)
+            output_bytes = shell_connection.recv(65535)
+            shell_connection.send("show version\n")
+            time.sleep(0.5)
+            output_bytes = shell_connection.recv(65535)
+            output_list = []
+            temp_list = output_bytes.decode("utf-8").splitlines()
+            for item in temp_list:
+                if item == "":
+                    continue
+                output_list.append(item)
+        else:
+            raise ValueError(
+                f"Enable password parameter has something jacked up with it.  enable_password = {enable_password}"
+            )
+        return_dict = {"Version Info": output_list}
         return_dict["OS Type"] = "unknown"
+        for line in output_list:
+            if "IOS-XE" in line:
+                return_dict["OS Type"] = "ios"
+                break
+            elif "IOS-XE" in line:
+                return_dict["OS Type"] = "ios"
+                break
+            elif "IOS-XR" in line:
+                return_dict["OS Type"] = "iosxr"
+                break
+            elif "Cisco Nexus" in line:
+                return_dict["OS Type"] = "nxos_ssh"
+                break
+            elif "IOSv" in line:
+                return_dict["OS Type"] = "ios"
+                break
         ssh_open.close()
         return return_dict
     ssh_open.close()
@@ -255,29 +317,33 @@ def get_config_napalm(
             if optional_args is None:
                 optional_args = {}
             optional_args["secret"] = enable_password
-    with device_driver(host, usern, passw, optional_args=optional_args) as device:
-        print("Attempting to get the device configuration...")
-        return_dict = {}
-        inputs_dict = {
-            "Device_Facts": device.get_facts,
-            "Device_Optics": device.get_optics,
-            "Device_Network_Instances": device.get_network_instances,
-            "Device_LLDP_Detail": device.get_lldp_neighbors_detail,
-            "Device_LLDP": device.get_lldp_neighbors,
-            "Device_Environment": device.get_environment,
-            "Device_Interfaces": device.get_interfaces,
-            "Device_Interfaces_IP": device.get_interfaces_ip,
-            "Device_SNMP_Information": device.get_snmp_information,
-            "Device_Users": device.get_users,
-        }
-        for key, value in inputs_dict.items():
-            try:
-                return_dict[key] = value()
-            except NotImplementedError:
-                return_dict[key] = {"Not_Implemented": "Not_Implemented"}
+    try:
+        with device_driver(host, usern, passw, optional_args=optional_args) as device:
+            print("Attempting to get the device configuration...")
+            return_dict = {}
+            inputs_dict = {
+                "Device_Facts": device.get_facts,
+                "Device_Optics": device.get_optics,
+                "Device_Network_Instances": device.get_network_instances,
+                "Device_LLDP_Detail": device.get_lldp_neighbors_detail,
+                "Device_LLDP": device.get_lldp_neighbors,
+                "Device_Environment": device.get_environment,
+                "Device_Interfaces": device.get_interfaces,
+                "Device_Interfaces_IP": device.get_interfaces_ip,
+                "Device_SNMP_Information": device.get_snmp_information,
+                "Device_Users": device.get_users,
+            }
+            for key, value in inputs_dict.items():
+                try:
+                    return_dict[key] = value()
+                except NotImplementedError:
+                    return_dict[key] = {"Not_Implemented": "Not_Implemented"}
 
-        device_config = device.get_config()
-        device_config_full = device.get_config(full=True)
+            device_config = device.get_config()
+            device_config_full = device.get_config(full=True)
+    except ValueError as ex:
+        print(ex)
+        return {}
     write_directory = directory_checker(host)
     config_dict = {
         "startup": "Device_Startup_Config",
@@ -310,7 +376,15 @@ def directory_checker(address):
         raise ValueError(f"{address} needs to be a string and not None")
     if not isinstance(address, str):
         raise ValueError(f"{address} needs to be a string and not None")
-    write_directory = f"{parentdir}\\Output\\Scans\\{address}"
+    write_directory = None
+    if "Output" in os.listdir(os.getcwd()):
+        write_directory = f"{os.getcwd()}/Output/Scans/{address}"
+    else:
+        path = "../"
+        while write_directory is None:
+            if "Output" in os.listdir(path):
+                write_directory = f"{path}/Output/Scans/{address}"
+            path += "../"
     if not os.path.exists(write_directory):
         os.makedirs(write_directory)
     return write_directory
@@ -416,9 +490,7 @@ def device_grab(
             enable_password=ssh_enable_password,
         )
         return_dict["CONFIG"]["Device_Information"] = device_information
-    return_dict["CONFIG"][
-        "Show_Info"
-    ] = scan_mods.grabbing_mods.device_specific_info_getter.device_info_getter(
+    return_dict["CONFIG"]["Show_Info"] = device_info_getter(
         address=connect_address,
         username=ssh_username,
         password=ssh_password,
@@ -435,13 +507,13 @@ if __name__ == "__main__":
     from scan_mods.device_class import FoundDevice
 
     start_time = time.time()
-    linux_testbox = ipaddress.ip_address("192.168.89.80")
-    cisco_iosxe_no_en = ipaddress.ip_address("192.168.89.254")
-    cisco_iosv_enable = ipaddress.ip_address("192.168.89.253")
-    cisco_iosl2_no_enable = ipaddress.ip_address("192.168.89.252")
-    cisco_nx0s7 = ipaddress.ip_address("192.168.89.251")
-    cisco_iosxe_enable = ipaddress.ip_address("192.168.89.247")
-    fake_testbox = ipaddress.ip_address("192.168.0.1")
+    linux_testbox = "192.168.89.80"
+    cisco_iosxe_no_en = "192.168.89.254"
+    cisco_iosv_enable = "192.168.89.253"
+    cisco_iosl2_no_enable = "192.168.89.252"
+    cisco_nx0s7 = "192.168.89.251"
+    cisco_iosxe_enable = "192.168.89.247"
+    fake_testbox = "192.168.0.1"
     response_time = (1.1, 1.35, 1.82)
     linux_ports = {
         "TCP": {
@@ -459,6 +531,15 @@ if __name__ == "__main__":
             },
             "21": {"Return Information": "220 (vsFTPd 3.0.3)"},
             "22": {"Return Information": "SSH-1.99-Cisco-1.25"},
+        }
+    }
+    nexus_ports = {
+        "TCP": {
+            "20": {
+                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
+            },
+            "21": {"Return Information": "220 (vsFTPd 3.0.3)"},
+            "22": {"Return Information": "SSH-2.0-OpenSSH_6.2 FIPS"},
         }
     }
     fake_ports = {
@@ -530,7 +611,7 @@ if __name__ == "__main__":
     json_output = json.dumps(json_input_dict, indent=4)
     print("\n\n\n\n")
     print(json_output)
-    with open(f"Output\\test_output_{time.time()}.txt", "w") as file_output:
+    with open(f"../../Output/test_output_{time.time()}.txt", "w") as file_output:
         file_output.write(json_output)
     duration = time.time() - start_time
     print(f"Duration to run was {duration}")
