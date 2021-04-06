@@ -22,6 +22,7 @@
 from multiprocessing import Value
 
 # Needed Imports
+import os
 import sys
 import ipaddress
 import time
@@ -33,6 +34,7 @@ from scan_mods.device_class import FoundDevice
 import scan_mods.common_validation_checks.check_username
 import scan_mods.common_validation_checks.check_password
 import scan_mods.common_validation_checks.check_enable_password
+import scan_mods.mp_port_scanner
 
 
 def parse_my_args():
@@ -131,13 +133,38 @@ def main():
     # create a class instance of each device that is up
     print("We now know who is up.  Working on keeping that data")
     device_list = []
-    for key, value in hosts_that_are_up.items():
-        device = FoundDevice(key, value["ping"])
+    for address, responsetime in hosts_that_are_up.items():
+        device = FoundDevice(
+            address,
+            responsetime["ping_response_time"],
+            address_dict[address]["username"],
+            address_dict[address]["password"],
+            address_dict[address]["use_enable"],
+            address_dict[address]["enable_password"],
+            address_dict[address]["domain_name"],
+        )
         device_list.append(device)
 
-    # test
     for device in device_list:
-        print(repr(device))
+        device.get_ports()
+        device.device_info_grabber()
+        write_directory = None
+        if "Output" in os.listdir(os.getcwd()):
+            write_directory = f"{os.getcwd()}/Output/Scans/{device.IP}"
+        else:
+            path = "../"
+            while write_directory is None:
+                if "Output" in os.listdir(path):
+                    write_directory = f"{path}/Output/Scans/{device.IP}"
+                path += "../"
+        if not os.path.exists(write_directory):
+            os.makedirs(write_directory)
+        file_location = f"{write_directory}\\{device.IP}_json_short.txt"
+        with open(file_location, "w") as output_file:
+            output_file.write(device.print_json_short())
+        file_location = f"{write_directory}\\{device.IP}_json_long.txt"
+        with open(file_location, "w") as output_file:
+            output_file.write(device.print_json_long())
 
 
 def get_who_to_scan(addresses_to_test):
