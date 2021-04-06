@@ -295,8 +295,10 @@ def port_scanner(address, domain_name=None):
         8443,
     )
     # check to make sure that the address is correct first
-    if not isinstance(address, ipaddress.IPv4Address):
-        raise TypeError(f"{address} since it is not an IPv4Address")
+    try:
+        ipaddress.ip_address(address)
+    except ValueError:
+        raise ValueError(f"{address} since it is not an IPv4Address")
     if domain_name is not None and not isinstance(domain_name, str):
         raise TypeError(f"{domain_name} is not a string")
     return_dict = {
@@ -308,9 +310,9 @@ def port_scanner(address, domain_name=None):
     tcp_port_to_domain_list = []
     udp_port_to_domain_list = []
     for i in range(len(TCP_PORTS)):
-        tcp_port_to_domain_list.append((str(address), TCP_PORTS[i], domain_name))
+        tcp_port_to_domain_list.append((address, TCP_PORTS[i], domain_name))
     for i in range(len(UDP_PORTS)):
-        udp_port_to_domain_list.append((str(address), UDP_PORTS[i], domain_name))
+        udp_port_to_domain_list.append((address, UDP_PORTS[i], domain_name))
     with multiprocessing.Pool() as pool:
         tcp_results = pool.map(__tcp_scanner, tcp_port_to_domain_list)
     for result in tcp_results:
