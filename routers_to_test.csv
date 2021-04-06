@@ -16,3 +16,5 @@
 # CiscoCSR1000v16.9.5-1
 # Gi1
 192.168.89.247,jmctsm,ciscocisco,test.local,True,ciscocisco
+# test ATT Modem
+192.168.0.254,jmctsm,ciscocisco,test.local,False,False
