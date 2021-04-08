@@ -23,7 +23,7 @@ from scan_mods.common_validation_checks.check_password import (
 )
 
 
-class TestCheckEnablePassword(unittest.TestCase):
+class TestCheckPassword(unittest.TestCase):
     def test_01_all_pass(self):
         test_list = [
             ("cisco", "192.168.1.1", "cisco"),
