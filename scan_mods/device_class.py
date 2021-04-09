@@ -9,7 +9,12 @@ import os
 import re
 import time
 import json
-import scan_mods.device_grabber
+import sys
+
+sys.path.append("../")
+
+from scan_mods.grabbing_mods.device_grabber import device_grab
+from scan_mods.mp_port_scanner import port_scanner
 
 
 class FoundDevice:
@@ -17,7 +22,7 @@ class FoundDevice:
     Class to define the devices being scanned
 
     Attributes:
-        ._IP = IPv4 object for the IP being scanned
+        ._IP = string that can be an IPaddress object
         ._response_time = response time tuple from pinger
         ._ports = dict of open ports and headers
 
@@ -28,9 +33,22 @@ class FoundDevice:
         .IP() : property method to get .IP attribute
     """
 
-    def __init__(self, address, time_tuple):
-        if not isinstance(address, ipaddress.IPv4Address):
-            raise TypeError(f"{address} is not an instance of ipaddress.IPv4Address")
+    def __init__(
+        self,
+        address,
+        time_tuple,
+        username=None,
+        password=None,
+        use_enable=False,
+        enable_password=False,
+        domain_name=None,
+    ):
+        if not isinstance(address, str):
+            raise TypeError("address it not of valid type string.  Please try again.")
+        try:
+            ipaddress.ip_address(address)
+        except ValueError:
+            raise ValueError(f"{address} is not a valid IP address.  Please try again.")
         if not isinstance(time_tuple, tuple):
             raise TypeError(f"{time_tuple} is not an instance of tuple")
         if len(time_tuple) != 3:
@@ -47,9 +65,15 @@ class FoundDevice:
         self._open_udp_ports = {}
         self._closed_tcp_ports = {}
         self._closed_udp_ports = {}
+        self._username = username
+        self._password = password
+        self._use_enable = use_enable
+        self._enable_password = enable_password
+        self._domain_name = domain_name
+        self.device_info = None
 
     @property
-    def IP(self) -> ipaddress.IPv4Address:
+    def IP(self) -> str:
         return self._IP
 
     @property
@@ -58,6 +82,44 @@ class FoundDevice:
 
     @property
     def all_ports(self):
+        return self._all_ports
+
+    @property
+    def username(self):
+        if self._username is None:
+            return "Username has not been set yet"
+        return self._username
+
+    @property
+    def password(self):
+        if self._password is None:
+            return "Password for device has not been given"
+        return "Password for device has been given"
+
+    @property
+    def enable_password(self):
+        if self._use_enable:
+            if self._enable_password is None:
+                return "Enable password for device has not been given"
+            return "Enable password for device has been given"
+        return "Not using Enable password for this device"
+
+    @property
+    def domain_name(self):
+        if self._domain_name is None:
+            return "Domain name has not been set yet"
+        return self._domain_name
+
+    def get_ports(self):
+        self.all_ports = port_scanner(self.IP, self.domain_name)
+
+    @property
+    def all_ports(self):
+        """
+        returns the _all_ports attribute.  If None, return False
+        """
+        if self._all_ports is None:
+            return None
         return self._all_ports
 
     @all_ports.setter
@@ -162,22 +224,6 @@ class FoundDevice:
                 f"The length of the ports categorized does not equal the length of the number of ports for UDP"
             )
 
-    def device_info_grabber(self):
-        """
-        This will use the scan_mods.device_grabber to get the information from each device and return it in a JSON format
-        """
-        """
-        I need to finish this
-        self.device_info_json = scan_mods.device_grabber.device_grab_info(
-            address=self.IP,
-            port_dict=self.open_tcp_ports,
-            username=None,
-            password=None,
-            enable_password_needed=False,
-            enable_password=None,
-        )
-        """
-
     @property
     def open_tcp_ports(self):
         """
@@ -224,7 +270,11 @@ class FoundDevice:
         """
         Basically if the IPs are equal then the class is equal to whatever is being tested
         """
-        if isinstance(other, ipaddress.IPv4Address):
+        if isinstance(other, str):
+            try:
+                ipaddress.ip_address(other)
+            except ValueError:
+                return False
             if other == self.IP:
                 return True
             return False
@@ -232,23 +282,33 @@ class FoundDevice:
             if other.IP == self.IP:
                 return True
             return False
-        if isinstance(other, str):
-            try:
-                if isinstance(ipaddress.IPv4Address(other), ipaddress.IPv4Address):
-                    if ipaddress.IPv4Address(other) == self.IP:
-                        return True
-                    return False
-                else:
-                    raise ValueError()
-            except ValueError:
-                return False
-        else:
+        if isinstance(other, ipaddress.IPv4Address):
+            if str(other) == self.IP:
+                return True
             return False
+        return False
+
+    def device_info_grabber(self):
+        """
+        This will use the scan_mods.device_grabber to get the information from each device and return it in a JSON format
+        """
+        self.device_info = device_grab(
+            address=self.IP,
+            port_dict=self.open_tcp_ports,
+            username=self._username,
+            password=self._password,
+            enable_password_needed=self._use_enable,
+            enable_password=self._enable_password,
+        )
 
     def __repr__(self) -> str:
         # This needs to be expanded and the test updated for it too
         return_string = f"{self.IP} : "
         return_string += f"\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
+        return_string += f"\n\tusername is {self.username}"
+        return_string += f"\n\tpassword {self.password}"
+        return_string += f"\n\tenable password {self.enable_password}"
+        return_string += f"\n\tdomain name is {self.domain_name}"
         if self.all_ports is not None:
             return_string += "\n\tOpen TCP Ports:"
             for key in self.open_tcp_ports.keys():
@@ -268,6 +328,10 @@ class FoundDevice:
         # This needs to be expanded and the test updated for it too
         return_string = f"{self.IP} : "
         return_string += f"\n\tresponse times are {self.response_time[0]} ms, {self.response_time[1]} ms, {self.response_time[2]} ms"
+        return_string += f"\n\tusername is {self.username}"
+        return_string += f"\n\tpassword {self.password}"
+        return_string += f"\n\tenable password {self.enable_password}"
+        return_string += f"\n\tdomain name is {self.domain_name}"
         if self.all_ports is not None:
             return_string += "\n\tOpen TCP Ports:"
             for key in self.open_tcp_ports.keys():
@@ -294,6 +358,10 @@ class FoundDevice:
         output = {}
         output[str(self.IP)] = {
             "ping_response_times": self.response_time,
+            "username": self.username,
+            "password": self.password,
+            "enable_password": self.enable_password,
+            "domain_name": self.domain_name,
         }
         if self.all_ports is not None:
             output[str(self.IP)]["Open_TCP_Ports_List"] = list(
@@ -308,7 +376,9 @@ class FoundDevice:
             output[str(self.IP)]["Closed_UDP_Ports_List"] = list(
                 self.closed_udp_ports.keys()
             )
-        return json.dumps(output)
+        if self.device_info is not None:
+            output[self.IP]["Device_Info"] = self.device_info["Version_Info"]
+        return json.dumps(output, indent=4)
 
     def print_json_long(self):
         """
@@ -321,872 +391,166 @@ class FoundDevice:
         output = {}
         output[str(self.IP)] = {
             "ping_response_times": self.response_time,
+            "username": self.username,
+            "password": self.password,
+            "enable_password": self.enable_password,
+            "domain_name": self.domain_name,
         }
         if self.all_ports is not None:
             output[str(self.IP)]["Open_TCP_Ports_List"] = self.open_tcp_ports
             output[str(self.IP)]["Open_UDP_Ports_List"] = self.open_udp_ports
             output[str(self.IP)]["Closed_TCP_Ports_List"] = self.closed_tcp_ports
             output[str(self.IP)]["Closed_UDP_Ports_List"] = self.closed_udp_ports
-        return json.dumps(output)
+        if self.device_info is not None:
+            output[self.IP]["Device_Info"] = self.device_info
+        return json.dumps(output, indent=4)
 
 
 if __name__ == "__main__":
     start_time = time.time()
-    address01 = ipaddress.ip_address("192.168.89.80")
-    address02 = ipaddress.ip_address("192.168.89.22")
-    address03 = ipaddress.ip_address("192.168.1.65")
-    address04 = ipaddress.ip_address("10.0.1.254")
-    address05 = ipaddress.ip_address("192.168.1.254")
+    address01 = "192.168.89.80"
+    address02 = "192.168.89.254"
+    address03 = "192.168.89.253"
+    address04 = "192.168.89.252"
+    address05 = "192.168.89.251"
+    address06 = "192.168.89.247"
+    address07 = "192.168.0.254"
+
     response_time01 = (1.1, 1.35, 1.82)
     response_time02 = (1.2, 1.35, 1.82)
     response_time03 = (1.3, 1.35, 1.82)
     response_time04 = (1.4, 1.35, 1.82)
     response_time05 = (1.5, 1.35, 1.82)
-    ports01 = {
-        "TCP": {
-            "20": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "21": {"Return Information": "220 (vsFTPd 3.0.3)"},
-            "22": {"Return Information": "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.1"},
-            "23": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "25": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "37": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "43": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "53": {
-                "Domain_Name": "test.local",
-                "Server": "192.168.89.80",
-                "@": "[@ 604800 IN SOA @ root 2 604800 86400 2419200 604800][@ 604800 IN NS ns][@ 604800 IN A 192.168.89.80][@ 604800 IN AAAA ::1]",
-                "ns": "[ns 604800 IN A 192.168.89.80]",
-                "www": "[www 604800 IN A 192.168.89.80]",
-            },
-            "79": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "80": {
-                "Date": "Tue, 09 Mar 2021 13:09:42 GMT",
-                "Server": "Apache/2.4.41 (Ubuntu)",
-                "Last-Modified": "Tue, 23 Feb 2021 19:42:50 GMT",
-                "ETag": '"2ab2-5bc061fadc9e7-gzip"',
-                "Accept-Ranges": "bytes",
-                "Vary": "Accept-Encoding",
-                "Content-Encoding": "gzip",
-                "Content-Length": "3147",
-                "Keep-Alive": "timeout=5, max=100",
-                "Connection": "Keep-Alive",
-                "Content-Type": "text/html",
-            },
-            "88": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "109": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "110": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "115": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "118": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "143": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "162": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "179": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "194": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "443": {
-                "Date": "Tue, 09 Mar 2021 13:09:42 GMT",
-                "Server": "Apache/2.4.41 (Ubuntu)",
-                "Last-Modified": "Tue, 23 Feb 2021 19:43:27 GMT",
-                "ETag": '"2ab0-5bc0621d8c961-gzip"',
-                "Accept-Ranges": "bytes",
-                "Vary": "Accept-Encoding",
-                "Content-Encoding": "gzip",
-                "Content-Length": "3145",
-                "Keep-Alive": "timeout=5, max=100",
-                "Connection": "Keep-Alive",
-                "Content-Type": "text/html",
-            },
-            "464": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "465": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "515": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "530": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "543": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "544": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "547": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "993": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "995": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "1080": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3128": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3306": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5432": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5900": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5938": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "8080": {
-                "Date": "Tue, 09 Mar 2021 13:09:45 GMT",
-                "Server": "Apache/2.4.41 (Ubuntu)",
-                "Last-Modified": "Tue, 23 Feb 2021 19:51:02 GMT",
-                "ETag": '"2abf-5bc063cf93aac-gzip"',
-                "Accept-Ranges": "bytes",
-                "Vary": "Accept-Encoding",
-                "Content-Encoding": "gzip",
-                "Content-Length": "3157",
-                "Keep-Alive": "timeout=5, max=100",
-                "Connection": "Keep-Alive",
-                "Content-Type": "text/html",
-            },
-            "8443": {
-                "Date": "Tue, 09 Mar 2021 13:09:44 GMT",
-                "Server": "Apache/2.4.41 (Ubuntu)",
-                "Last-Modified": "Mon, 08 Mar 2021 18:24:30 GMT",
-                "ETag": '"2abf-5bd0a8b7734dc-gzip"',
-                "Accept-Ranges": "bytes",
-                "Vary": "Accept-Encoding",
-                "Content-Encoding": "gzip",
-                "Content-Length": "3159",
-                "Keep-Alive": "timeout=5, max=100",
-                "Connection": "Keep-Alive",
-                "Content-Type": "text/html",
-            },
-        },
-        "UDP": {
-            "43": {"ERROR": "Socket Timed Out"},
-            "53": {
-                "Name": "test.local.",
-                "Record Type": "SOA",
-                "Record Class": "IN",
-                "nameserver": "192.168.89.80",
-                "port": "53",
-                "Answer": "test.local. 604800 IN SOA test.local. root.test.local. 2 604800 86400 2419200 604800",
-                "Canonical Name": "test.local.",
-                "Minimum TTL": "604800",
-                "CNAMES": [],
-                "DNS Record Set": "test.local. 604800 IN SOA test.local. root.test.local. 2 604800 86400 2419200 604800",
-                "expiration": "1615900227.7461846",
-            },
-            "67": {"ERROR": "Socket Timed Out"},
-            "69": {"ERROR": "Socket Timed Out"},
-            "88": {"ERROR": "Socket Timed Out"},
-            "118": {"ERROR": "Socket Timed Out"},
-            "123": {"ERROR": "Socket Timed Out"},
-            "161": {"ERROR": "Socket Timed Out"},
-            "162": {"ERROR": "Socket Timed Out"},
-            "194": {"ERROR": "Socket Timed Out"},
-            "464": {"ERROR": "Socket Timed Out"},
-            "514": {"ERROR": "Socket Timed Out"},
-            "530": {"ERROR": "Socket Timed Out"},
-            "547": {"ERROR": "Socket Timed Out"},
-            "995": {"ERROR": "Socket Timed Out"},
-            "1080": {"ERROR": "Socket Timed Out"},
-            "3389": {"ERROR": "Socket Timed Out"},
-            "5938": {"ERROR": "Socket Timed Out"},
-            "8080": {"ERROR": "Socket Timed Out"},
-            "8443": {"ERROR": "Socket Timed Out"},
-        },
-    }
-    ports02 = {
-        "TCP": {
-            "20": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "21": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "22": {"Return Information": "SSH-1.99-Cisco-1.25"},
-            "23": {
-                "ERROR": "UnicodeDecodeError -- 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
-            },
-            "25": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "37": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "43": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "53": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "79": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "80": {
-                "Server": "nginx",
-                "Date": "Tue, 09 Mar 2021 13:13:25 GMT",
-                "Content-Type": "text/html; charset=utf-8",
-                "Transfer-Encoding": "chunked",
-                "Connection": "keep-alive",
-                "Expires": "Tue, 09 Mar 2021 13:13:25 GMT",
-                "Last-Modified": "Tue, 09 Mar 2021 13:13:25 GMT",
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-                "Pragma": "no-cache",
-                "Accept-Ranges": "none",
-                "X-XSS-Protection": "1; mode=block",
-                "X-Content-Type-Options": "nosniff",
-                "X-Frame-Options": "SAMEORIGIN",
-            },
-            "88": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "109": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "110": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "115": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "118": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "143": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "162": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "179": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "194": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "443": {
-                "Server": "nginx",
-                "Date": "Tue, 09 Mar 2021 13:13:26 GMT",
-                "Content-Type": "text/html; charset=utf-8",
-                "Transfer-Encoding": "chunked",
-                "Connection": "keep-alive",
-                "Expires": "Tue, 09 Mar 2021 13:13:26 GMT",
-                "Last-Modified": "Tue, 09 Mar 2021 13:13:26 GMT",
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-                "Pragma": "no-cache",
-                "Accept-Ranges": "none",
-                "X-XSS-Protection": "1; mode=block",
-                "X-Content-Type-Options": "nosniff",
-                "X-Frame-Options": "SAMEORIGIN",
-                "Strict-Transport-Security": "max-age=7884000",
-            },
-            "464": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "465": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "515": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "530": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "543": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "544": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "547": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "993": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "995": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "1080": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3128": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3306": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5432": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5900": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5938": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "8080": {
-                "ERROR": "ConnectionError -- HTTPConnectionPool(host='192.168.89.22', port=8080): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x036D64A8>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
-            },
-            "8443": {
-                "ERROR": "ConnectionError -- HTTPSConnectionPool(host='192.168.89.22', port=8443): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x043243A0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
-            },
-        },
-        "UDP": {
-            "43": {"ERROR": "Socket Timed Out"},
-            "53": {
-                "ERROR": "DNSTimeOutDNS -- operation timed out.  Port is more than likely blocked or not open"
-            },
-            "67": {"ERROR": "Socket Timed Out"},
-            "69": {"ERROR": "Socket Timed Out"},
-            "88": {"ERROR": "Socket Timed Out"},
-            "118": {"ERROR": "Socket Timed Out"},
-            "123": {"ERROR": "Socket Timed Out"},
-            "161": {"ERROR": "Socket Timed Out"},
-            "162": {"ERROR": "Socket Timed Out"},
-            "194": {"ERROR": "Socket Timed Out"},
-            "464": {"ERROR": "Socket Timed Out"},
-            "514": {"ERROR": "Socket Timed Out"},
-            "530": {"ERROR": "Socket Timed Out"},
-            "547": {"ERROR": "Socket Timed Out"},
-            "995": {"ERROR": "Socket Timed Out"},
-            "1080": {"ERROR": "Socket Timed Out"},
-            "3389": {"ERROR": "Socket Timed Out"},
-            "5938": {"ERROR": "Socket Timed Out"},
-            "8080": {"ERROR": "Socket Timed Out"},
-            "8443": {"ERROR": "Socket Timed Out"},
-        },
-    }
-    ports03 = {
-        "TCP": {
-            "20": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "21": {
-                "Return Information": "220---------- Welcome to Pure-FTPd [privsep] [TLS] ----------"
-            },
-            "22": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "23": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "25": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "37": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "43": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "53": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "79": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "80": {
-                "Cache-Control": "no-store, no-cache, must-revalidate",
-                "Content-Encoding": "gzip",
-                "Content-Language": "en",
-                "Content-Length": "7124",
-                "Content-Type": "text/html; charset=UTF-8",
-                "Date": "Tue, 09 Mar 2021 12:51:24 GMT",
-                "Expires": "Thu, 19 Nov 1981 08:52:00 GMT",
-                "Pragma": "no-cache",
-                "Set-Cookie": "PHPSESSID=%2C7ftSWN0xleUHHb-3zISuKKhs2lH-VJBjR-qRx9IPddWkFfqS23w%2CUyiVwOOUmrMil0pIY9MLHrvq7fRfZJBTWHOycXc5f4KtYbqeXE-PNDg3WuMGE44-xPUK5KaWUuG; path=/; HttpOnly; SameSite=Strict",
-                "Vary": "Accept-Encoding",
-                "X-Frame-Options": "sameorigin",
-            },
-            "88": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "109": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "110": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "115": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "118": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "143": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "162": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "179": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "194": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "443": {
-                "ERROR": "ConnectionError -- HTTPSConnectionPool(host='192.168.1.65', port=443): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x03F663A0>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
-            },
-            "464": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "465": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "515": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "530": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "543": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "544": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "547": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "993": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "995": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "1080": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3128": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3306": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5432": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5900": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5938": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "8080": {
-                "ERROR": "ConnectionError -- HTTPConnectionPool(host='192.168.1.65', port=8080): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x03F14478>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
-            },
-            "8443": {
-                "ERROR": "ConnectionError -- HTTPSConnectionPool(host='192.168.1.65', port=8443): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x0450F400>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
-            },
-        },
-        "UDP": {
-            "43": {"ERROR": "Socket Timed Out"},
-            "53": {
-                "ERROR": "DNSTimeOutDNS -- operation timed out.  Port is more than likely blocked or not open"
-            },
-            "67": {"ERROR": "Socket Timed Out"},
-            "69": {"ERROR": "Socket Timed Out"},
-            "88": {"ERROR": "Socket Timed Out"},
-            "118": {"ERROR": "Socket Timed Out"},
-            "123": {"ERROR": "Socket Timed Out"},
-            "161": {"ERROR": "Socket Timed Out"},
-            "162": {"ERROR": "Socket Timed Out"},
-            "194": {"ERROR": "Socket Timed Out"},
-            "464": {"ERROR": "Socket Timed Out"},
-            "514": {"ERROR": "Socket Timed Out"},
-            "530": {"ERROR": "Socket Timed Out"},
-            "547": {"ERROR": "Socket Timed Out"},
-            "995": {"ERROR": "Socket Timed Out"},
-            "1080": {"ERROR": "Socket Timed Out"},
-            "3389": {"ERROR": "Socket Timed Out"},
-            "5938": {"ERROR": "Socket Timed Out"},
-            "8080": {"ERROR": "Socket Timed Out"},
-            "8443": {"ERROR": "Socket Timed Out"},
-        },
-    }
-    ports04 = {
-        "TCP": {
-            "20": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "21": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "22": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "23": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "25": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "37": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "43": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "53": {"ERROR": "TimeoutError -- [Errno 10060] Unknown error"},
-            "79": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "80": {
-                "ERROR": "ConnectionError -- HTTPConnectionPool(host='10.0.1.254', port=80): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x03B73490>: Failed to establish a new connection: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond'))"
-            },
-            "88": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "109": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "110": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "115": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "118": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "143": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "162": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "179": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "194": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "389": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "443": {
-                "ERROR": "ConnectionError -- HTTPSConnectionPool(host='10.0.1.254', port=443): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x03DE63B8>: Failed to establish a new connection: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond'))"
-            },
-            "464": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "465": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "515": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "530": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "543": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "544": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "547": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "993": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "995": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "1080": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "3128": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "3306": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "3389": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "5432": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "5900": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "5938": {
-                "ERROR": "TimeoutError -- A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond"
-            },
-            "8080": {
-                "ERROR": "ConnectionError -- HTTPConnectionPool(host='10.0.1.254', port=8080): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x00554490>: Failed to establish a new connection: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond'))"
-            },
-            "8443": {
-                "ERROR": "ConnectionError -- HTTPSConnectionPool(host='10.0.1.254', port=8443): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x007443D0>: Failed to establish a new connection: [WinError 10060] A connection attempt failed because the connected party did not properly respond after a period of time, or established connection failed because connected host has failed to respond'))"
-            },
-        },
-        "UDP": {
-            "43": {"ERROR": "Socket Timed Out"},
-            "53": {
-                "ERROR": "DNSTimeOutDNS -- operation timed out.  Port is more than likely blocked or not open"
-            },
-            "67": {"ERROR": "Socket Timed Out"},
-            "69": {"ERROR": "Socket Timed Out"},
-            "88": {"ERROR": "Socket Timed Out"},
-            "118": {"ERROR": "Socket Timed Out"},
-            "123": {"ERROR": "Socket Timed Out"},
-            "161": {"ERROR": "Socket Timed Out"},
-            "162": {"ERROR": "Socket Timed Out"},
-            "194": {"ERROR": "Socket Timed Out"},
-            "464": {"ERROR": "Socket Timed Out"},
-            "514": {"ERROR": "Socket Timed Out"},
-            "530": {"ERROR": "Socket Timed Out"},
-            "547": {"ERROR": "Socket Timed Out"},
-            "995": {"ERROR": "Socket Timed Out"},
-            "1080": {"ERROR": "Socket Timed Out"},
-            "3389": {"ERROR": "Socket Timed Out"},
-            "5938": {"ERROR": "Socket Timed Out"},
-            "8080": {"ERROR": "Socket Timed Out"},
-            "8443": {"ERROR": "Socket Timed Out"},
-        },
-    }
-    ports05 = {
-        "TCP": {
-            "20": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "21": {"Return Information": ""},
-            "22": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "23": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "25": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "37": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "43": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "53": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "79": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "80": {
-                "Date": "Tue, 09 Mar 2021 13:11:01 GMT",
-                "Server": "2wire Gateway",
-                "Content-Type": "text/html",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Transfer-Encoding": "chunked",
-                "Pragma": "no-cache",
-                "Connection": "Keep-Alive",
-            },
-            "88": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "109": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "110": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "115": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "118": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "143": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "162": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "179": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "194": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "443": {
-                "Date": "Tue, 09 Mar 2021 13:11:06 GMT",
-                "Server": "2wire Gateway",
-                "Content-Type": "text/html",
-                "Cache-Control": "no-cache, no-store, must-revalidate",
-                "Transfer-Encoding": "chunked",
-                "Pragma": "no-cache",
-                "Connection": "Keep-Alive",
-            },
-            "464": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "465": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "515": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "530": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "543": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "544": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "547": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "993": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "995": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "1080": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3128": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3306": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "3389": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5432": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5900": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "5938": {
-                "ERROR": "ConnectionRefusedError -- No connection could be made because the target machine actively refused it"
-            },
-            "8080": {
-                "ERROR": "ConnectionError -- HTTPConnectionPool(host='192.168.1.254', port=8080): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPConnection object at 0x03A94478>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
-            },
-            "8443": {
-                "ERROR": "ConnectionError -- HTTPSConnectionPool(host='192.168.1.254', port=8443): Max retries exceeded with url: / (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x040C43B8>: Failed to establish a new connection: [WinError 10061] No connection could be made because the target machine actively refused it'))"
-            },
-        },
-        "UDP": {
-            "43": {"ERROR": "Socket Timed Out"},
-            "53": {
-                "Name": "test.local.",
-                "Record Type": "SOA",
-                "Record Class": "IN",
-                "nameserver": "192.168.1.254",
-                "port": "53",
-                "Answer": "test.local. 900 IN SOA ns1-etm.att.net. nomail.etm.att.net. 1 604800 3600 2419200 900",
-                "Canonical Name": "test.local.",
-                "Minimum TTL": "900",
-                "CNAMES": [],
-                "DNS Record Set": "test.local. 900 IN SOA ns1-etm.att.net. nomail.etm.att.net. 1 604800 3600 2419200 900",
-                "expiration": "1615296406.0719643",
-            },
-            "67": {"ERROR": "Socket Timed Out"},
-            "69": {"ERROR": "Socket Timed Out"},
-            "88": {"ERROR": "Socket Timed Out"},
-            "118": {"ERROR": "Socket Timed Out"},
-            "123": {"ERROR": "Socket Timed Out"},
-            "161": {"ERROR": "Socket Timed Out"},
-            "162": {"ERROR": "Socket Timed Out"},
-            "194": {"ERROR": "Socket Timed Out"},
-            "464": {"ERROR": "Socket Timed Out"},
-            "514": {"ERROR": "Socket Timed Out"},
-            "530": {"ERROR": "Socket Timed Out"},
-            "547": {"ERROR": "Socket Timed Out"},
-            "995": {"ERROR": "Socket Timed Out"},
-            "1080": {"ERROR": "Socket Timed Out"},
-            "3389": {"ERROR": "Socket Timed Out"},
-            "5938": {"ERROR": "Socket Timed Out"},
-            "8080": {"ERROR": "Socket Timed Out"},
-            "8443": {"ERROR": "Socket Timed Out"},
-        },
-    }
+    response_time06 = (1.6, 1.35, 1.82)
+    response_time07 = (1.7, 1.35, 1.82)
 
-    test_device01 = FoundDevice(address01, response_time01)
-    test_device02 = FoundDevice(address02, response_time02)
-    test_device03 = FoundDevice(address03, response_time03)
-    test_device04 = FoundDevice(address04, response_time04)
-    test_device01.all_ports = ports01
-    test_device02.all_ports = ports02
-    test_device03.all_ports = ports03
-    test_device04.all_ports = ports04
-    print(repr(test_device01))
-    print(repr(test_device02))
-    print(repr(test_device03))
-    print(repr(test_device04))
-    print(test_device01)
-    print(test_device02)
-    print(test_device03)
-    print(test_device04)
-    print(test_device01.print_json_short())
+    domain_name = "test.local"
+    username = "jmctsm"
+    password = "ciscocisco"
+    enable_password = "ciscocisco"
+
+    device_list = []
+    device_list.append(
+        FoundDevice(
+            address01,
+            response_time01,
+            username=username,
+            password=password,
+            domain_name=domain_name,
+        )
+    )
+    device_list.append(
+        FoundDevice(
+            address02,
+            response_time02,
+            username=username,
+            password=password,
+            domain_name=domain_name,
+        )
+    )
+    device_list.append(
+        FoundDevice(
+            address03,
+            response_time03,
+            username=username,
+            password=password,
+            domain_name=domain_name,
+            use_enable=True,
+            enable_password=enable_password,
+        )
+    )
+    device_list.append(
+        FoundDevice(
+            address04,
+            response_time04,
+            username=username,
+            password=password,
+            domain_name=domain_name,
+        )
+    )
+    device_list.append(
+        FoundDevice(
+            address05,
+            response_time05,
+            username=username,
+            password=password,
+            domain_name=domain_name,
+        )
+    )
+    device_list.append(
+        FoundDevice(
+            address06,
+            response_time06,
+            username=username,
+            password=password,
+            domain_name=domain_name,
+            use_enable=True,
+            enable_password=enable_password,
+        )
+    )
+    device_list.append(
+        FoundDevice(
+            address07,
+            response_time07,
+            username=username,
+            password=password,
+            domain_name=domain_name,
+        )
+    )
+
+    for device in device_list:
+        print(device.IP)
+        device.get_ports()
+
+    for device in device_list:
+        print(device.IP)
+        device.device_info_grabber()
+
+    for device in device_list:
+        print(repr(device))
+
     print("\n\n\n\n")
-    print(test_device01.print_json_long())
+
+    for device in device_list:
+        print(device)
+
+    print("\n\n\n\n")
+
+    for device in device_list:
+        print(device.print_json_short())
+        write_directory = None
+        if "Output" in os.listdir(os.getcwd()):
+            write_directory = f"{os.getcwd()}/Output/Scans/{device.IP}"
+        else:
+            path = "../"
+            while write_directory is None:
+                if "Output" in os.listdir(path):
+                    write_directory = f"{path}/Output/Scans/{device.IP}"
+                path += "../"
+        if not os.path.exists(write_directory):
+            os.makedirs(write_directory)
+        file_location = f"{write_directory}\\{device.IP}_json_short.txt"
+        with open(file_location, "w") as output_file:
+            output_file.write(device.print_json_short())
+
+    print("\n\n\n\n")
+
+    for device in device_list:
+        print(device.print_json_long())
+        write_directory = None
+        if "Output" in os.listdir(os.getcwd()):
+            write_directory = f"{os.getcwd()}/Output/Scans/{device.IP}"
+        else:
+            path = "../"
+            while write_directory is None:
+                if "Output" in os.listdir(path):
+                    write_directory = f"{path}/Output/Scans/{device.IP}"
+                path += "../"
+        if not os.path.exists(write_directory):
+            os.makedirs(write_directory)
+        file_location = f"{write_directory}\\{device.IP}_json_long.txt"
+        with open(file_location, "w") as output_file:
+            output_file.write(device.print_json_long())
+
     duration = time.time() - start_time
     print(f"Total time was {duration} seconds")
