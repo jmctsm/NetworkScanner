@@ -11,7 +11,7 @@ import time
 import json
 
 
-def __strip_alligators(string):
+def strip_alligators(string):
     """
         This will strip all < > from a string and return it so that a JSON linter quits barking at me
 
@@ -29,6 +29,44 @@ def __strip_alligators(string):
     return second_replace
 
 
+def validate_server_domain_name(server, domain_name):
+    """
+        Validates the server and domain_name variables
+
+        Args:
+            server (str) : string of an IP address to test the domain against
+        domainname (str) : string for the domain to test against
+
+    Return:
+        tuple : tuple of the server and the domain name if they both validate correctly
+    """
+    if server is not None and not isinstance(server, str):
+        raise ValueError(
+            f"a server was passed of type {type(server)} but it needs to be of type str"
+        )
+    if server is not None:
+        try:
+            ipaddress.ip_address(server)
+        except ValueError:
+            raise ValueError(f"{server} does not appear to be an IPv4 or IPv6 address")
+    if domain_name is not None and not isinstance(domain_name, str):
+        raise ValueError(
+            f"a domain was passed of type {type(server)} but it needs to be of type str"
+        )
+    if server is None:
+        print(f"No server specified.  Using 192.168.89.80 for DNS resolution")
+        return_server = "192.168.89.80"
+    else:
+        return_server = server
+    if domain_name is None:
+        print(f"No domain name specified.  Using test.local for DNS resolution")
+        return_domain_name = "test.local"
+    else:
+        return_domain_name = domain_name
+
+    return (return_server, return_domain_name)
+
+
 def udp_dns_scanner(dns_server=None, domainname=None):
     """
     Will connect to and get information from the DNS device using udp
@@ -43,7 +81,7 @@ def udp_dns_scanner(dns_server=None, domainname=None):
     """
     server_list = []
     return_dict = {}
-    server, domain_name = __validate_server_domain_name(dns_server, domainname)
+    server, domain_name = validate_server_domain_name(dns_server, domainname)
     server_list.append(server)
     if len(server_list) > 1 or len(server_list) < 1:
         raise ValueError(
@@ -86,9 +124,9 @@ def udp_dns_scanner(dns_server=None, domainname=None):
             return_dict[key] = str(response.__dict__.get(key, None))
         elif isinstance(value, dns.message.ChainingResult):
             # return_dict["Answer"] = value.answer
-            return_dict["Answer"] = __strip_alligators(value.answer)
-            return_dict["Canonical Name"] = __strip_alligators(value.canonical_name)
-            return_dict["Minimum TTL"] = __strip_alligators(value.minimum_ttl)
+            return_dict["Answer"] = strip_alligators(value.answer)
+            return_dict["Canonical Name"] = strip_alligators(value.canonical_name)
+            return_dict["Minimum TTL"] = strip_alligators(value.minimum_ttl)
             return_dict["CNAMES"] = value.cnames
         elif isinstance(value, dns.rrset.RRset):
             return_dict["DNS Record Set"] = value.__str__()
@@ -109,7 +147,7 @@ def tcp_dns_scanner(dns_server=None, domainname=None):
         str : string of either a problem or a string of the answers from the server
 
     """
-    server, domain_name = __validate_server_domain_name(dns_server, domainname)
+    server, domain_name = validate_server_domain_name(dns_server, domainname)
     return_dict = {}
     try:
         z = dns.zone.from_xfr(dns.query.xfr(server, domain_name))
@@ -146,44 +184,6 @@ def tcp_dns_scanner(dns_server=None, domainname=None):
         else:
             return_dict[node] = return_string
     return return_dict
-
-
-def __validate_server_domain_name(server, domain_name):
-    """
-        Validates the server and domain_name variables
-
-        Args:
-            server (str) : string of an IP address to test the domain against
-        domainname (str) : string for the domain to test against
-
-    Return:
-        tuple : tuple of the server and the domain name if they both validate correctly
-    """
-    if server is not None and not isinstance(server, str):
-        raise ValueError(
-            f"a server was passed of type {type(server)} but it needs to be of type str"
-        )
-    if server is not None:
-        try:
-            ipaddress.ip_address(server)
-        except ValueError:
-            raise ValueError(f"{server} does not appear to be an IPv4 or IPv6 address")
-    if domain_name is not None and not isinstance(domain_name, str):
-        raise ValueError(
-            f"a domain was passed of type {type(server)} but it needs to be of type str"
-        )
-    if server is None:
-        print(f"No server specified.  Using 192.168.89.80 for DNS resolution")
-        return_server = "192.168.89.80"
-    else:
-        return_server = server
-    if domain_name is None:
-        print(f"No domain name specified.  Using test.local for DNS resolution")
-        return_domain_name = "test.local"
-    else:
-        return_domain_name = domain_name
-
-    return (return_server, return_domain_name)
 
 
 if __name__ == "__main__":
