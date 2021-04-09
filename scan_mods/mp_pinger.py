@@ -7,7 +7,7 @@ import multiprocessing
 import time
 
 
-def __ping_address(address):
+def ping_address(address):
     """
     This will take an IP address in the IP objects and ping it.
     It will return either a string that says it timed out or it
@@ -18,7 +18,7 @@ def __ping_address(address):
     Tried to optomize so it can be run in a multi-processor environment
 
     Args:
-        address (ipaddress.IPv4Address) : ipaddress in ipaddress.ipv4address class type
+        address (str) : ipaddress in string format
 
     Return:
         tuple/str : tuple of ip address and response times if the system is up or a TIMEOUT string if not
@@ -55,10 +55,10 @@ def pinger(addresses):
     the response times for each address.
 
     Args:
-        addresses (list) : list of IP address objects to ping
+        addresses (list) : list of IP address strings to ping
 
     Return:
-        list : list of IP address objects that are reachable and the
+        dict : dictionary of IP address strings that are reachable and the
             response time of each one
     """
     # raise an error is an empty list is passed to the function
@@ -76,7 +76,7 @@ def pinger(addresses):
         except ValueError:
             raise ValueError(f"{address} is not an IPv4 address")
     with multiprocessing.Pool() as pool:
-        ping_results = pool.map(__ping_address, addresses)
+        ping_results = pool.map(ping_address, addresses)
 
     active_dict = {}
     if len(ping_results) == 0:
