@@ -113,72 +113,34 @@ class TestPortScanner(unittest.TestCase):
 
         print("Finished test for http_scanner failing when use a bad port value\n")
 
-    @patch.object(requests.Session, "get", side_effect=requests.exceptions.HTTPError)
-    def test_05_http_error_catching(
-        self,
-        mock_requests,
-    ):
-        """ Tests that the HTTP Error code is caught correctly"""
-        print("\nStarting test for http_scanner correctly catching a HTTP Error")
-        result = scan_mods.protocol_scanners.http_scanner.http_scanner(
-            "192.168.89.80",
-            port=80,
-        )
-        self.assertIsNotNone(result)
-        self.assertGreaterEqual(len(result), 1)
-        self.assertIsInstance(result, dict)
-        for key in result.keys():
-            self.assertIsInstance(key, str)
-            self.assertEqual(key, "ERROR")
-            self.assertEqual(result[key], "HTTPError -- ")
+    def test_05_patch(self):
+        """ Tests that the all exceptions are caught correctly"""
+        print("\nStarting test for http_scanner correctly catching exceptions")
+        test_list = [
+            (requests.exceptions.HTTPError, "HTTPError -- "),
+            (requests.exceptions.ConnectionError, "ConnectionError -- "),
+            (Exception, "OtherError -- "),
+        ]
+        for test_tuple in test_list:
+            test_exception, test_string = test_tuple
+            with patch(
+                "scan_mods.protocol_scanners.https_scanner.requests.Session.get",
+                side_effect=test_exception,
+            ):
+                result = scan_mods.protocol_scanners.http_scanner.http_scanner(
+                    "192.168.89.80",
+                    port=443,
+                )
+                self.assertIsNotNone(result)
+                self.assertGreaterEqual(len(result), 1)
+                self.assertIsInstance(result, dict)
+                for key in result.keys():
+                    self.assertIsInstance(key, str)
+                    self.assertEqual(key, "ERROR")
+                    self.assertEqual(result[key], test_string)
+        print("Finished test for http_scanner correctly catching exceptions")
 
-        print("Finished test for http_scanner correctly catching a HTTP Error\n")
-
-    @patch.object(
-        requests.Session, "get", side_effect=requests.exceptions.ConnectionError
-    )
-    def test_06_conn_error_catching(
-        self,
-        mock_requests,
-    ):
-        """ Tests that the Connection Error code is caught correctly"""
-        print("\nStarting test for http_scanner correctly catching a Connection Error")
-        result = scan_mods.protocol_scanners.http_scanner.http_scanner(
-            "192.168.89.80",
-            port=80,
-        )
-        self.assertIsNotNone(result)
-        self.assertGreaterEqual(len(result), 1)
-        self.assertIsInstance(result, dict)
-        for key in result.keys():
-            self.assertIsInstance(key, str)
-            self.assertEqual(key, "ERROR")
-            self.assertEqual(result[key], "ConnectionError -- ")
-
-        print("Finished test for http_scanner correctly catching a Connection Error\n")
-
-    @patch.object(requests.Session, "get", side_effect=Exception)
-    def test_07_all_other_error_catching(
-        self,
-        mock_requests,
-    ):
-        """ Tests that the any Exception code is caught correctly"""
-        print("\nStarting test for http_scanner correctly catching any Exception Error")
-        result = scan_mods.protocol_scanners.http_scanner.http_scanner(
-            "192.168.89.80",
-            port=80,
-        )
-        self.assertIsNotNone(result)
-        self.assertGreaterEqual(len(result), 1)
-        self.assertIsInstance(result, dict)
-        for key in result.keys():
-            self.assertIsInstance(key, str)
-            self.assertEqual(key, "ERROR")
-            self.assertEqual(result[key], "OtherError -- ")
-
-        print("Finished test for http_scanner correctly catching any Exception Error\n")
-
-    def test_08_can_create_valid_json(self):
+    def test_06_can_create_valid_json(self):
         """
         Tests that the HTTP port scanner can create valid json
         """
