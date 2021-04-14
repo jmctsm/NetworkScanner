@@ -75,7 +75,7 @@ from scan_mods.protocol_scanners.dns_scanner import tcp_dns_scanner
 """
 
 
-def __validate_for_scanners(address, port, domain):
+def validate_for_scanners(address, port, domain):
     """
     Validates that the address, port, and domain are of the correct types
     Pulled here since the code was the same
@@ -94,7 +94,7 @@ def __validate_for_scanners(address, port, domain):
     return True
 
 
-def __tcp_scanner(address_port_domain_name_tuple):
+def tcp_scanner(address_port_domain_name_tuple):
     """
     Scans the TCP port and returns the string to the main function
 
@@ -107,7 +107,7 @@ def __tcp_scanner(address_port_domain_name_tuple):
     if len(address_port_domain_name_tuple) != 3:
         raise ValueError("Length of tuple passed to tcp scanner was not three")
     address, port, domain_name = address_port_domain_name_tuple
-    __validate_for_scanners(address, port, domain_name)
+    validate_for_scanners(address, port, domain_name)
     print(f"Scanning TCP port {port}")
     TCP_key = f"TCP_{str(port)}"
     if port == 53:
@@ -169,10 +169,9 @@ def __tcp_scanner(address_port_domain_name_tuple):
         tcp_return_dict = {"Return Information": scan_data.strip()}
         scan_socket.close()
         return (TCP_key, tcp_return_dict)
-    return None
 
 
-def __udp_scanner(address_port_domain_name_tuple):
+def udp_scanner(address_port_domain_name_tuple):
     """
     Scans the TCP port and returns the string to the main function
 
@@ -185,7 +184,7 @@ def __udp_scanner(address_port_domain_name_tuple):
     if len(address_port_domain_name_tuple) != 3:
         raise ValueError("Length of tuple passed to tcp scanner was not three")
     address, port, domain_name = address_port_domain_name_tuple
-    __validate_for_scanners(address, port, domain_name)
+    validate_for_scanners(address, port, domain_name)
     print(f"Scanning UDP port {port}")
     UDP_key = f"UDP_{str(port)}"
     if port == 53:
@@ -215,7 +214,6 @@ def __udp_scanner(address_port_domain_name_tuple):
         udp_return_dict = {"ERROR": "Socket Timed Out"}
         scan_socket.close()
         return (UDP_key, udp_return_dict)
-    return None
 
 
 def port_scanner(address, domain_name=None):
@@ -224,7 +222,7 @@ def port_scanner(address, domain_name=None):
     It returns a dictionary of ports and headers to the calling function
 
     Args:
-        address (IPv4 address object) : IPv4 address object to scan
+        address (str) : IPv4 address object to scan
         domain_name (str) : string of the domain name to test with other places like DNS
 
     Return:
@@ -314,7 +312,7 @@ def port_scanner(address, domain_name=None):
     for i in range(len(UDP_PORTS)):
         udp_port_to_domain_list.append((address, UDP_PORTS[i], domain_name))
     with multiprocessing.Pool() as pool:
-        tcp_results = pool.map(__tcp_scanner, tcp_port_to_domain_list)
+        tcp_results = pool.map(tcp_scanner, tcp_port_to_domain_list)
     for result in tcp_results:
         if len(result) != 2:
             print(f"\n\n{result}\n\n")
@@ -325,7 +323,7 @@ def port_scanner(address, domain_name=None):
             scan_output = result[1]
         return_dict["TCP"][result[0][4:]] = scan_output
     with multiprocessing.Pool() as pool:
-        udp_results = pool.map(__udp_scanner, udp_port_to_domain_list)
+        udp_results = pool.map(udp_scanner, udp_port_to_domain_list)
     for result in udp_results:
         if len(result) != 2:
             print(f"\n\n{result}\n\n")
@@ -343,13 +341,13 @@ if __name__ == "__main__":
     start_time = time.time()
     # calling function for example
     address_list = [
-        ipaddress.ip_address("192.168.89.80"),
-        ipaddress.ip_address("192.168.89.254"),
-        ipaddress.ip_address("192.168.89.253"),
-        ipaddress.ip_address("192.168.89.252"),
-        ipaddress.ip_address("192.168.89.251"),
-        ipaddress.ip_address("192.168.89.247"),
-        ipaddress.ip_address("192.168.0.1"),
+        "192.168.89.80",
+        "192.168.89.254",
+        "192.168.89.253",
+        "192.168.89.252",
+        "192.168.89.251",
+        "192.168.89.247",
+        "192.168.0.254",
     ]
     test_domain_names = [
         "test.local",
