@@ -9,7 +9,17 @@ import os
 import sys
 from typing import Type
 
-sys.path.append("../../")
+if "scan_mods" in os.listdir(os.getcwd()):
+    sys.path.append(os.getcwd())
+
+else:
+    path = "../"
+    while True:
+        if "scan_mods" in os.listdir(path):
+            sys.path.append(path)
+            break
+        else:
+            path += "../"
 
 from scan_mods.common_validation_checks.check_address import check_address
 from scan_mods.common_validation_checks.check_username import check_username
