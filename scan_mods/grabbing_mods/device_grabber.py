@@ -7,9 +7,19 @@ This will connect to a device that is Cisco and attempt to get the config from t
 import os
 import sys
 
-sys.path.append("../../")
 
-from typing import Type
+if "scan_mods" in os.listdir(os.getcwd()):
+    sys.path.append(os.getcwd())
+
+else:
+    path = "../"
+    while True:
+        if "scan_mods" in os.listdir(path):
+            sys.path.append(path)
+            break
+        else:
+            path += "../"
+
 from scan_mods.common_validation_checks.check_address import check_address
 from scan_mods.common_validation_checks.check_username import check_username
 from scan_mods.common_validation_checks.check_password import check_password
