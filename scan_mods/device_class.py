@@ -94,10 +94,6 @@ class FoundDevice:
         return self._response_time
 
     @property
-    def all_ports(self):
-        return self._all_ports
-
-    @property
     def username(self):
         if self._username is None:
             return "Username has not been set yet"
