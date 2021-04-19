@@ -135,7 +135,7 @@ def get_device_type(address, port, username, password, enable_password, header):
 
     except paramiko.ssh_exception.NoValidConnectionsError:
         return_dict = {
-            "Version Info": f"[ERROR] paramiko.ssh_exception.NoValidConnectionsError: Unable to connect to port 22 on {address}"
+            "Version Info": f"[ERROR] paramiko.ssh_exception.NoValidConnectionsError: Unable to connect to port {port} on {address}"
         }
         return return_dict
     if header == "Cisco":
