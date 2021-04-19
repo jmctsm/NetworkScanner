@@ -53,7 +53,7 @@ class FoundDevice:
         username=None,
         password=None,
         use_enable=False,
-        enable_password=False,
+        enable_password=None,
         domain_name=None,
     ):
         if not isinstance(address, str):
