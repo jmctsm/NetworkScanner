@@ -175,6 +175,10 @@ class FoundDevice:
                                 f"{ports_headers[key]} is not a dictionary.  "
                                 f"It was {type(ports_headers[key]).__name__}"
                             )
+                    else:
+                        raise KeyError(
+                            f"{key} does not follow standard of 'TCP' or 'UDP'"
+                        )
         else:
             raise TypeError(
                 f"ports variable passed in was not a dictionary.  It was {type(ports_headers).__name__}."
