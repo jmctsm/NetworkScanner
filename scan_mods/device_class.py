@@ -11,7 +11,20 @@ import time
 import json
 import sys
 
-sys.path.append("../")
+# sys.path.append("../")
+
+
+if "scan_mods" in os.listdir(os.getcwd()):
+    sys.path.append(os.getcwd())
+
+else:
+    path = "../"
+    while True:
+        if "scan_mods" in os.listdir(path):
+            sys.path.append(path)
+            break
+        else:
+            path += "../"
 
 from scan_mods.grabbing_mods.device_grabber import device_grab
 from scan_mods.mp_port_scanner import port_scanner
