@@ -184,7 +184,16 @@ class FoundDevice:
                 f"ports variable passed in was not a dictionary.  It was {type(ports_headers).__name__}."
                 f"  You may want to fix that."
             )
+        self.set_private_closed_open_ports()
 
+    def set_private_closed_open_ports(self):
+        """
+        This will take the all_ports attribute and get the open and closed ports from it.
+        Args:
+            None
+        Return:
+            None
+        """
         for protocol_key in self._all_ports.keys():
             if protocol_key == "TCP":
                 for port_key in self._all_ports["TCP"].keys():
@@ -281,7 +290,10 @@ class FoundDevice:
 
     def __eq__(self, other: object) -> bool:
         """
-        Basically if the IPs are equal then the class is equal to whatever is being tested
+        Check to see if the IPs are equal, then response times, then all_ports.  If all
+        that is equal, then must be equal.
+
+        If other is a string, then check that only IPs are equal
         """
         if isinstance(other, str):
             try:
@@ -292,7 +304,11 @@ class FoundDevice:
                 return True
             return False
         if isinstance(other, FoundDevice):
-            if other.IP == self.IP:
+            if (
+                other.IP == self.IP
+                and self.response_time == other.response_time
+                and self.all_ports == other.all_ports
+            ):
                 return True
             return False
         if isinstance(other, ipaddress.IPv4Address):
